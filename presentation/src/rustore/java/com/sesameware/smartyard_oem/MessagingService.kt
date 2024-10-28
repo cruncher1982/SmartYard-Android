@@ -158,7 +158,7 @@ class MessagingService : RuStoreMessagingService(), KoinComponent {
 
     //для заданного пользователя нужно закомментировать всю функцию
     override fun onNewToken(token: String) {
-        Timber.d("debug_dmm new hms token: $token")
+        Timber.d("debug_dmm new RuStore token: $token")
         preferenceStorage.pushToken = token
 
         if (preferenceStorage.authToken != null) {
