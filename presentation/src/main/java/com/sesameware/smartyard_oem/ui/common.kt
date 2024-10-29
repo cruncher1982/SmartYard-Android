@@ -353,7 +353,7 @@ fun sendCallNotification(
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         val notification = notificationBuilder.build()
-        if (VERSION.SDK_INT >= VERSION_CODES.O) {
+        if (VERSION.SDK_INT >= VERSION_CODES.Q) {
             try {
                 LinphoneService.instance?.let { service ->
                     ServiceCompat.startForeground(service, notId, notification,

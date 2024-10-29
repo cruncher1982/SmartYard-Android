@@ -270,7 +270,7 @@ class MessagingService : RuStoreMessagingService(), KoinComponent {
         fcmCallData.flagNotification = flagNotification
         Thread {
             if (!LinphoneService.isReady()) {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || !flagNotification) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || !flagNotification) {
                     startService(
                         Intent().setClass(context, LinphoneService::class.java).also { intent ->
                             if (fcmCallData.stun?.isNotEmpty() == true) {
