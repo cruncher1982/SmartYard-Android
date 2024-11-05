@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.IBinder
 import org.linphone.core.Core
 import org.linphone.core.Factory
+import org.linphone.core.LogLevel
 import org.linphone.core.tools.Log
 import timber.log.Timber
 import java.io.File
@@ -34,7 +35,7 @@ class LinphoneService : Service() {
 
         /*Factory.instance().setLoggerDomain("__L__")
         Factory.instance().enableLogcatLogs(true)
-        Factory.instance().loggingService.setLogLevel(LogLevel.Message)*/
+        Factory.instance().loggingService.setLogLevel(LogLevel.Trace)*/
 
         val core = Factory.instance().createCore("$basePath/$FILE", "$basePath/$FOLDER", this)
         core.setUserAgent("Teledom", BuildConfig.VERSION_NAME)
