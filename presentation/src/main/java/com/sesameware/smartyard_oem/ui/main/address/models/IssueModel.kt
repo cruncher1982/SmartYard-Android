@@ -1,7 +1,6 @@
 package com.sesameware.smartyard_oem.ui.main.address.models
 
 import android.os.Parcelable
-import com.sesameware.smartyard_oem.ui.main.address.models.interfaces.AddressListItem
 import kotlinx.parcelize.Parcelize
 import com.sesameware.smartyard_oem.ui.main.address.models.interfaces.DisplayableItem
 
