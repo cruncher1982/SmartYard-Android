@@ -13,7 +13,7 @@
     <string name="setting_dialog_exit_caption_msg">Вы действительно хотите выйти из вашей учетной записи?</string>
     <string name="setting_dialog_exit_yes">Да</string>
     <string name="setting_dialog_exit_no">Нет</string>
-    <string name="setting_dialog_delete_title">Вы уверенны?</string>
+    <string name="setting_dialog_delete_title">Вы уверены?</string>
     <string name="setting_dialog_delete_yes">Да</string>
     <string name="setting_dialog_delete_no">Отмена</string>
 
