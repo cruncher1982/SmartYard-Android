@@ -45,6 +45,9 @@ class LinphoneService : Service() {
             Timber.i("debug_dmm linphone ports:\ntls: $tlsPort udp: $udpPort tcp:$tcpPort")
         }
         //mCore?.micGainDb = 5.0f
+
+        // prevent double ringing
+        mCore?.isNativeRingingEnabled = false
     }
 
     override fun onDestroy() {
