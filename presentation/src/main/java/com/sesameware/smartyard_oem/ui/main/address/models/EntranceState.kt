@@ -6,5 +6,5 @@ data class EntranceState(
     @DrawableRes
     val iconRes: Int,
     val name: String,
-    val id: EntranceId
+    val entranceId: EntranceId
 )

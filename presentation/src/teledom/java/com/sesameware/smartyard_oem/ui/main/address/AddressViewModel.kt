@@ -11,16 +11,16 @@ import com.sesameware.domain.interactors.DatabaseInteractor
 import com.sesameware.domain.interactors.IssueInteractor
 import com.sesameware.domain.model.AddressItem
 import com.sesameware.domain.model.StateButton
+import com.sesameware.domain.model.response.Address
 import com.sesameware.smartyard_oem.Event
 import com.sesameware.smartyard_oem.GenericViewModel
 import com.sesameware.smartyard_oem.R
 import com.sesameware.smartyard_oem.ui.main.address.event_log.Flat
+import com.sesameware.smartyard_oem.ui.main.address.models.AddressListItem
+import com.sesameware.smartyard_oem.ui.main.address.models.HouseState
+import com.sesameware.smartyard_oem.ui.main.address.models.EntranceId
+import com.sesameware.smartyard_oem.ui.main.address.models.EntranceState
 import com.sesameware.smartyard_oem.ui.main.address.models.IssueModel
-import com.sesameware.smartyard_oem.ui.main.address.models.ParentModel
-import com.sesameware.smartyard_oem.ui.main.address.models.interfaces.DisplayableItem
-import com.sesameware.smartyard_oem.ui.main.address.models.interfaces.EventLogModel
-import com.sesameware.smartyard_oem.ui.main.address.models.interfaces.VideoCameraModel
-import com.sesameware.smartyard_oem.ui.main.address.models.interfaces.Yard
 import timber.log.Timber
 
 class AddressViewModel(
@@ -31,8 +31,8 @@ class AddressViewModel(
     override val mDatabaseInteractor: DatabaseInteractor
 ) : GenericViewModel() {
 
-    private val _dataList = MutableLiveData<List<DisplayableItem>>()
-    val dataList: LiveData<List<DisplayableItem>>
+    private val _dataList = MutableLiveData<List<AddressListItem>>()
+    val dataList: LiveData<List<AddressListItem>>
         get() = _dataList
 
     private val _progress = MutableLiveData<Boolean>()
@@ -42,11 +42,12 @@ class AddressViewModel(
     val navigationToAuth: LiveData<Event<Unit>>
         get() = _navigationToAuth
 
-    var expandedHouseId = mutableSetOf<Int>()  // множество развёрнутых адресов
+    var houseIdFlats: HashMap<Int, List<Flat>> = hashMapOf()
+        private set
 
-    fun openDoor(domophoneId: Int, doorId: Int?) {
+    fun openDoor(id: EntranceId) {
         viewModelScope.withProgress {
-            mAuthInteractor.openDoor(domophoneId, doorId)
+            mAuthInteractor.openDoor(id.domophoneId, id.doorId)
         }
     }
 
@@ -55,6 +56,20 @@ class AddressViewModel(
 
     init {
         getDataList()
+    }
+
+    fun setAddressItemExpanded(position: Int, isExpanded: Boolean) {
+        val addressList = _dataList.value?.toMutableList() ?: return
+        val listItem = try {
+            addressList[position]
+        } catch (e: Exception) {
+            return
+        }
+        if (listItem !is HouseState) return
+
+        val newState = listItem.copy(isExpanded = isExpanded)
+        addressList[position] = newState
+        _dataList.postValue(addressList)
     }
 
     private suspend fun getHouseIdFlats(): HashMap<Int, List<Flat>> {
@@ -69,7 +84,7 @@ class AddressViewModel(
         }
 
         val houseIdFlats = hashMapOf<Int, List<Flat>>()  // идентификатор дома с квартирами пользователя
-        houseFlats.keys.forEach {houseId ->
+        houseFlats.keys.forEach { houseId ->
             houseIdFlats[houseId] = houseFlats[houseId]!!.map { flatId ->
                 val resIntercom = addressInteractor.getIntercom(flatId)
                 val frsEnabled = (resIntercom.data.frsDisabled == false)
@@ -93,116 +108,111 @@ class AddressViewModel(
             },
             progress = _progress
         ) {
-            if (noCache) {
-                mPreferenceStorage.xDmApiRefresh = true
-            }
-            val houseIdFlats = getHouseIdFlats()
-            if (noCache) {
-                mPreferenceStorage.xDmApiRefresh = true
-            }
-            val res = addressInteractor.getAddressList()
-            if (res?.data == null) {
-                _dataList.value = listOf()
-                if (!mPreferenceStorage.whereIsContractWarningSeen) {
-                    _navigationToAuth.value = (Event(Unit))
-                }
-            } else {
-                Timber.d(this.javaClass.simpleName, res.data.size)
-                mDatabaseInteractor.deleteAll()
-                var hasExpanded = false
-                val list: MutableList<DisplayableItem> = (
-                    res.data.map { addressItem ->
-                        val mutableList = mutableListOf<DisplayableItem>()
-                        var hasYards = false
-                        addressItem.doors.forEach {
-                            Timber.d(
-                                this.javaClass.simpleName,
-                                "Door address: ${addressItem.address}"
-                            )
-
-                            mDatabaseInteractor
-                                .createItem(
-                                    AddressItem(
-                                        name = it.name,
-                                        address = addressItem.address,
-                                        icon = it.icon,
-                                        domophoneId = it.domophoneId,
-                                        doorId = it.doorId,
-                                        state = StateButton.CLOSE
-                                    )
-                                )
-
-                            mutableList.add(
-                                Yard().apply {
-                                    image = when (it.icon) {
-                                        "barrier" -> R.drawable.ic_barrier
-                                        "gate" -> R.drawable.ic_gates
-                                        "wicket" -> R.drawable.ic_wicket
-                                        "entrance" -> R.drawable.ic_porch
-                                        else -> R.drawable.ic_barrier
-                                    }
-                                    caption = it.name
-                                    open = false
-                                    domophoneId = it.domophoneId
-                                    doorId = it.doorId
-                                    hasYards = true
-                                }
-                            )
-                        }
-                        if (addressItem.cctv > 0) {
-                            mutableList.add(
-                                VideoCameraModel().apply {
-                                    resourceId = R.string.addresses_video_cameras
-                                    counter = addressItem.cctv
-                                    houseId = addressItem.houseId
-                                    address = addressItem.address
-                                }
-                            )
-                        }
-                        houseIdFlats[addressItem.houseId]?.let { list ->
-                            if (addressItem.hasPlog && hasYards && list.isNotEmpty()) {
-                                mutableList.add(
-                                    EventLogModel().apply {
-                                        resourceId = R.string.addresses_events
-                                        counter = 0
-                                        houseId = addressItem.houseId
-                                        address = addressItem.address
-                                        flats = list
-                                    }
-                                )
-                            }
-                        }
-                        hasExpanded = hasExpanded || expandedHouseId.contains(addressItem.houseId)
-                        ParentModel(
-                            addressItem.address,
-                            addressItem.houseId,
-                            mutableList,
-                            hasYards,
-                            expandedHouseId.contains(addressItem.houseId)
-                        )
-                    }.toMutableList()
-                )
-                list.sortWith(compareBy(
-                    {!(it as ParentModel).hasYards},
-                    {(it as ParentModel).addressTitle}
-                ))
-                if (!forceRefresh && list.size > 0 && !hasExpanded) {
-                    (list[0] as? ParentModel)?.let { parent ->
-                        expandedHouseId.add(parent.houseId)
-                        parent.isExpanded = true
-                    }
-                }
-                val listConnect = if (DataModule.providerConfig.issuesVersion != "2") issueInteractor.listConnectIssue()?.data else issueInteractor.listConnectIssueV2()?.data
-                _dataList.value = list.plus(
-                    listConnect?.map {
-                        IssueModel(
-                            it.address ?: "",
-                            it.key ?: "",
-                            it.courier ?: ""
-                        )
-                    } ?: emptyList()
-                )
-            }
+            populateData(noCache)
         }
+    }
+
+    private suspend fun populateData(noCache: Boolean) {
+        if (noCache) {
+            mPreferenceStorage.xDmApiRefresh = true
+        }
+        houseIdFlats = getHouseIdFlats()
+        if (noCache) {
+            mPreferenceStorage.xDmApiRefresh = true
+        }
+        val response = addressInteractor.getAddressList()
+        if (response?.data == null) {
+            _dataList.value = listOf()
+            if (!mPreferenceStorage.whereIsContractWarningSeen) {
+                _navigationToAuth.value = (Event(Unit))
+            }
+            return
+        }
+
+        Timber.d(this.javaClass.simpleName, response.data.size)
+        mDatabaseInteractor.deleteAll()
+
+        val expandedHouseIds = dataList.value?.asSequence()
+            ?.filterIsInstance<HouseState>()
+            ?.filter { it.isExpanded }
+            ?.map { it.houseId }
+            ?.toSet()
+            ?: setOf()
+
+        val addressListDto = response.data
+        val houseStateList = addressListDto.map { addressDto ->
+            val entranceList = addressDto.doors.map { entranceDto ->
+                addToWidgetDatabase(entranceDto, addressDto)
+                EntranceState(
+                    iconRes = when (entranceDto.icon) {
+                        "barrier" -> R.drawable.ic_barrier
+                        "gate" -> R.drawable.ic_gates
+                        "wicket" -> R.drawable.ic_wicket
+                        "entrance" -> R.drawable.ic_porch
+                        else -> R.drawable.ic_barrier
+                    },
+                    name = entranceDto.name,
+                    entranceId = EntranceId(
+                        domophoneId = entranceDto.domophoneId,
+                        doorId = entranceDto.doorId
+                    )
+                )
+            }
+            val houseHasEntrances = entranceList.isNotEmpty()
+            val houseHasFlats = houseIdFlats[addressDto.houseId]?.isNotEmpty() ?: false
+            val isExpanded = expandedHouseIds.contains(addressDto.houseId)
+            HouseState(
+                houseId = addressDto.houseId,
+                address = addressDto.address,
+                entranceList = entranceList,
+                cameraCount = addressDto.cctv,
+                hasEventLog = addressDto.hasPlog && houseHasEntrances && houseHasFlats,
+                isExpanded = isExpanded
+            )
+        }.toMutableList()
+
+        houseStateList.sortWith(
+            compareBy(
+                { it.entranceList.isEmpty() },
+                { it.address }
+            )
+        )
+
+        if (expandedHouseIds.isEmpty()) {
+            val newState = houseStateList[0].copy(isExpanded = true)
+            houseStateList[0] = newState
+        }
+
+        val issuesList = if (DataModule.providerConfig.issuesVersion != "2") {
+            issueInteractor.listConnectIssue()?.data
+        } else {
+            issueInteractor.listConnectIssueV2()?.data
+        }
+        _dataList.value = houseStateList.plus(
+            issuesList?.map {
+                IssueModel(
+                    it.address ?: "",
+                    it.key ?: "",
+                    it.courier ?: ""
+                )
+            } ?: emptyList()
+        )
+    }
+
+    private suspend fun addToWidgetDatabase(
+        entranceDto: Address.Door,
+        addressDto: Address
+    ) {
+        mDatabaseInteractor
+            .createItem(
+                AddressItem(
+                    name = entranceDto.name,
+                    address = addressDto.address,
+                    icon = entranceDto.icon,
+                    domophoneId = entranceDto.domophoneId,
+                    doorId = entranceDto.doorId,
+                    state = StateButton.CLOSE
+                )
+            )
     }
 }

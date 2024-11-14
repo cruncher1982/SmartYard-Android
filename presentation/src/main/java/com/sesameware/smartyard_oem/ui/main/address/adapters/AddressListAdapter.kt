@@ -15,7 +15,7 @@ import com.sesameware.smartyard_oem.databinding.ItemVideoCameraBinding
 import com.sesameware.smartyard_oem.databinding.ItemYardBinding
 import com.sesameware.smartyard_oem.ui.main.address.models.AddressAction
 import com.sesameware.smartyard_oem.ui.main.address.models.AddressListItem
-import com.sesameware.smartyard_oem.ui.main.address.models.AddressState
+import com.sesameware.smartyard_oem.ui.main.address.models.HouseState
 import com.sesameware.smartyard_oem.ui.main.address.models.EntranceState
 import com.sesameware.smartyard_oem.ui.main.address.models.IssueAction
 import com.sesameware.smartyard_oem.ui.main.address.models.IssueModel
@@ -23,9 +23,11 @@ import com.sesameware.smartyard_oem.ui.main.address.models.OnCameraClick
 import com.sesameware.smartyard_oem.ui.main.address.models.OnEventLogClick
 import com.sesameware.smartyard_oem.ui.main.address.models.OnExpandClick
 import com.sesameware.smartyard_oem.ui.main.address.models.OnIssueClick
+import com.sesameware.smartyard_oem.ui.main.address.models.OnItemFullyExpanded
 import com.sesameware.smartyard_oem.ui.main.address.models.OnOpenEntranceClick
 import com.sesameware.smartyard_oem.ui.main.address.models.OnQrCodeClick
 import com.sesameware.smartyard_oem.ui.main.address.models.interfaces.VideoCameraModelP
+import net.cachapa.expandablelayout.ExpandableLayout.OnExpansionUpdateListener
 
 typealias AddressCallback = (AddressAction) -> Unit
 typealias IssueCallback = (IssueAction) -> Unit
@@ -37,7 +39,7 @@ class AddressListAdapter(
 
     override fun getItemViewType(position: Int): Int {
         return when (getItem(position)) {
-            is AddressState -> ADDRESS_STATE
+            is HouseState -> ADDRESS_STATE
             is IssueModel -> ISSUE_MODEL
         }
     }
@@ -52,7 +54,7 @@ class AddressListAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (holder) {
             is AddressViewHolder -> {
-                val state = getItem(position) as AddressState
+                val state = getItem(position) as HouseState
                 holder.bind(state, addressCallback)
             }
             is IssueViewHolder -> {
@@ -62,7 +64,7 @@ class AddressListAdapter(
         }
     }
 
-    // To skip rebinding, when AddressState.isExpanded is set by button click
+    // To skip rebinding, when item expands itself
     override fun onBindViewHolder(
         holder: RecyclerView.ViewHolder,
         position: Int,
@@ -80,7 +82,7 @@ class AddressListAdapter(
 
         override fun areItemsTheSame(oldItem: AddressListItem, newItem: AddressListItem) =
             when {
-                oldItem is AddressState && newItem is AddressState -> {
+                oldItem is HouseState && newItem is HouseState -> {
                     oldItem.houseId == newItem.houseId
                 }
                 oldItem is IssueModel && newItem is IssueModel -> {
@@ -91,7 +93,7 @@ class AddressListAdapter(
 
         override fun areContentsTheSame(oldItem: AddressListItem, newItem: AddressListItem) =
             when {
-                oldItem is AddressState && newItem is AddressState -> {
+                oldItem is HouseState && newItem is HouseState -> {
                     oldItem == newItem
                 }
                 oldItem is IssueModel && newItem is IssueModel -> {
@@ -101,7 +103,7 @@ class AddressListAdapter(
             }
 
         override fun getChangePayload(oldItem: AddressListItem, newItem: AddressListItem): Any? =
-            if (oldItem is AddressState && newItem is AddressState &&
+            if (oldItem is HouseState && newItem is HouseState &&
                 oldItem.isExpanded != newItem.isExpanded) true else null
 
     }
@@ -111,20 +113,33 @@ private class AddressViewHolder private constructor(
     private val binding: ItemAddressBinding
 ) : RecyclerView.ViewHolder(binding.root) {
 
-    fun bind(state: AddressState, callback: AddressCallback) {
+    fun bind(state: HouseState, callback: AddressCallback) {
         with (binding) {
-            addressTitle.text = state.title
+            addressTitle.text = state.address
             expandAddress.isSelected = state.isExpanded
             expandableLayout.setExpanded(state.isExpanded, false)
+            expandableLayout.setOnExpansionUpdateListener(object : OnExpansionUpdateListener {
+                private var lastFraction = -1f
+
+                override fun onExpansionUpdate(expansionFraction: Float, state: Int) {
+                    if (lastFraction != expansionFraction && expansionFraction == 1f) {
+                        callback(OnItemFullyExpanded(bindingAdapterPosition))
+                    }
+                    lastFraction = expansionFraction
+                }
+            })
             expandAddress.setOnClickListener {
                 expandAddress.isSelected = !expandAddress.isSelected
                 callback(OnExpandClick(bindingAdapterPosition, expandAddress.isSelected))
                 expandableLayout.toggle()
             }
-            addEntrances(binding.addressContent, state.entranceList, callback)
-            val model = VideoCameraModelP(state.houseId, state.title)
-            addCameras(binding.addressContent, model, state.cameraCount, callback)
-            addEventLog(binding.addressContent, state.hasEventLog, callback)
+
+            addressContent.removeAllViews()
+            addEntrances(addressContent, state.entranceList, callback)
+            val model = VideoCameraModelP(state.houseId, state.address)
+            addCameras(addressContent, model, state.cameraCount, callback)
+            addEventLog(addressContent, state.hasEventLog,
+                state.address, state.houseId, callback)
         }
     }
 
@@ -141,7 +156,7 @@ private class AddressViewHolder private constructor(
                 tvName.text = state.name
                 tbOpen.isChecked = false
                 tbOpen.setOnClickListener {
-                    callback(OnOpenEntranceClick(state.id))
+                    callback(OnOpenEntranceClick(state.entranceId))
                     tbOpen.isClickable = false
                     val handler = Handler(Looper.getMainLooper())
                     handler.postDelayed(
@@ -162,6 +177,8 @@ private class AddressViewHolder private constructor(
         count: Int,
         callback: AddressCallback
     ) {
+        if (count == 0) return
+
         val binding = ItemVideoCameraBinding.inflate(LayoutInflater.from(layout.context),
             layout,true)
         with (binding) {
@@ -172,14 +189,20 @@ private class AddressViewHolder private constructor(
         }
     }
 
-    private fun addEventLog(layout: LinearLayout, hasEventLog: Boolean, callback: AddressCallback) {
+    private fun addEventLog(
+        layout: LinearLayout,
+        hasEventLog: Boolean,
+        title: String,
+        houseId: Int,
+        callback: AddressCallback
+    ) {
         if (!hasEventLog) return
 
         val binding = ItemEventLogBinding.inflate(LayoutInflater.from(layout.context),
             layout, true)
         with (binding) {
             root.setOnClickListener {
-                callback(OnEventLogClick)
+                callback(OnEventLogClick(title, houseId))
             }
         }
     }
