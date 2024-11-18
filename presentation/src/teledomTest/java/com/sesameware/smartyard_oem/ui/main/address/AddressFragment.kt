@@ -22,20 +22,29 @@ import com.sesameware.data.DataModule
 import com.sesameware.domain.model.response.CCTVDataTree
 import com.sesameware.domain.model.response.CCTVRepresentationType
 import com.sesameware.domain.model.response.CCTVViewTypeType
-import org.koin.androidx.viewmodel.ext.android.sharedStateViewModel
-import org.koin.androidx.viewmodel.ext.android.sharedViewModel
 import com.sesameware.smartyard_oem.EventObserver
 import com.sesameware.smartyard_oem.R
 import com.sesameware.smartyard_oem.databinding.FragmentAddressBinding
 import com.sesameware.smartyard_oem.ui.main.MainActivity
 import com.sesameware.smartyard_oem.ui.main.MainActivityViewModel
-import com.sesameware.smartyard_oem.ui.main.address.adapters.ParentListAdapter
-import com.sesameware.smartyard_oem.ui.main.address.adapters.ParentListAdapterSetting
+import com.sesameware.smartyard_oem.ui.main.address.adapters.AddressListAdapter
 import com.sesameware.smartyard_oem.ui.main.address.cctv_video.CCTVViewModel
 import com.sesameware.smartyard_oem.ui.main.address.event_log.EventLogViewModel
 import com.sesameware.smartyard_oem.ui.main.address.guestAccessDialog.GuestAccessDialogFragment
-import com.sesameware.smartyard_oem.ui.main.address.models.ParentModel
+import com.sesameware.smartyard_oem.ui.main.address.models.AddressAction
+import com.sesameware.smartyard_oem.ui.main.address.models.IssueAction
+import com.sesameware.smartyard_oem.ui.main.address.models.IssueModel
+import com.sesameware.smartyard_oem.ui.main.address.models.OnCameraClick
+import com.sesameware.smartyard_oem.ui.main.address.models.OnEventLogClick
+import com.sesameware.smartyard_oem.ui.main.address.models.OnExpandClick
+import com.sesameware.smartyard_oem.ui.main.address.models.OnIssueClick
+import com.sesameware.smartyard_oem.ui.main.address.models.OnItemFullyExpanded
+import com.sesameware.smartyard_oem.ui.main.address.models.OnOpenEntranceClick
+import com.sesameware.smartyard_oem.ui.main.address.models.OnQrCodeClick
+import com.sesameware.smartyard_oem.ui.main.address.models.interfaces.VideoCameraModelP
 import com.sesameware.smartyard_oem.ui.updateAllWidget
+import org.koin.androidx.viewmodel.ext.android.sharedStateViewModel
+import org.koin.androidx.viewmodel.ext.android.sharedViewModel
 import timber.log.Timber
 
 class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListener {
@@ -47,9 +56,33 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
     private val mViewModel by sharedViewModel<AddressViewModel>()
     private val mEventLog by sharedViewModel<EventLogViewModel>()
 
-    lateinit var recyclerView: RecyclerView
+    private var adapter: AddressListAdapter? = null
 
-    private var adapter: ParentListAdapter? = null
+    private val receiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            Timber.d("debug_dmm address")
+            intent?.let {
+                mViewModel.nextListNoCache = true
+                mViewModel.getDataList()
+            }
+        }
+    }
+
+    private val showHideFabListener = object : OnScrollListener() {
+        override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+            super.onScrolled(recyclerView, dx, dy)
+            if (dy > 0 && binding.floatingActionButton.visibility == View.VISIBLE) {
+                binding.floatingActionButton.hide()
+            } else if (dy < 0 && binding.floatingActionButton.visibility != View.VISIBLE) {
+                binding.floatingActionButton.show()
+            }
+
+            if (!recyclerView.canScrollVertically(-1)
+                && binding.floatingActionButton.visibility != View.VISIBLE) {
+                binding.floatingActionButton.show()
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -60,10 +93,115 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
         return binding.root
     }
 
-    @Deprecated("Deprecated in Java")
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        initRecycler()
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        initAddressList()
+        bindViews()
+        initActivityObservers()
+        initObservers()
+    }
+
+    private fun initAddressList() {
+        adapter = AddressListAdapter(::onAddressAction, ::onIssueAction)
+        binding.addressList.let {
+            it.adapter = adapter
+
+            it.addOnScrollListener(showHideFabListener)
+        }
+    }
+
+    private fun onAddressAction(action: AddressAction) {
+        when (action) {
+            is OnCameraClick -> navigateToCCTVFragment(action.model)
+            is OnEventLogClick -> {
+                prepareEventLogViewModel(action.title,action.houseId)
+                navigateToEventLogFragment()
+            }
+            is OnExpandClick -> {
+                mViewModel.setAddressItemExpanded(action.position, action.isExpanded)
+
+            }
+            is OnOpenEntranceClick -> mViewModel.openDoor(action.entranceId)
+            is OnItemFullyExpanded -> scrollUntilFullItemVisible(action.position)
+        }
+    }
+
+    private fun scrollUntilFullItemVisible(position: Int) {
+        val layoutManager = binding.addressList.layoutManager as LinearLayoutManager
+        val smoothScroller: SmoothScroller = object : LinearSmoothScroller(context) {
+            override fun getVerticalSnapPreference(): Int {
+                return SNAP_TO_START
+            }
+        }
+        smoothScroller.targetPosition = position
+        layoutManager.startSmoothScroll(smoothScroller)
+    }
+
+    private fun navigateToCCTVFragment(model: VideoCameraModelP) {
+        when (DataModule.providerConfig.cctvView) {
+            CCTVViewTypeType.TREE -> {
+                mCCTVViewModel.getCamerasTree(model) {
+                    val group = mCCTVViewModel.cameraGroups.value
+                    mCCTVViewModel.chosenIndex.value = null
+                    mCCTVViewModel.chosenCamera.value = null
+                    mCCTVViewModel.chooseGroup(group?.groupId ?: CCTVDataTree.DEFAULT_GROUP_ID)
+                    mCCTVViewModel.getCameraList(group?.cameras ?: listOf(), group?.type ?: CCTVRepresentationType.MAP) {
+                        val action = if (group?.type == CCTVRepresentationType.LIST) AddressFragmentDirections.actionAddressFragmentToCCTVTreeFragment(group) else AddressFragmentDirections.actionAddressFragmentToMapCameraFragment()
+                        this.findNavController().navigate(action)
+                    }
+                }
+            }
+            else -> {
+                mCCTVViewModel.getCameras(model) {
+                    this.findNavController().navigate(R.id.action_addressFragment_to_mapCameraFragment)
+                }
+            }
+        }
+    }
+
+    private fun prepareEventLogViewModel(title: String, houseId: Int) {
+        mEventLog.address = title
+        mEventLog.flatsAll = mViewModel.houseIdFlats[houseId] ?: listOf()
+        mEventLog.filterFlat = null
+        mEventLog.currentEventDayFilter = null
+        mEventLog.lastLoadedDayFilterIndex.value = -1
+        mEventLog.currentEventItem = null
+        mEventLog.getAllFaces()
+    }
+
+    private fun navigateToEventLogFragment() {
+        findNavController().navigate(R.id.action_addressFragment_to_eventLogFragment)
+    }
+
+    private fun onIssueAction(action: IssueAction) {
+        when (action) {
+            is OnIssueClick -> {
+                if (action.issue.courier) {
+                    navigateToWorkSoonOfficeFragment(action.issue)
+                } else {
+                    navigateToWorkSoonCourierFragment(action.issue)
+                }
+            }
+            OnQrCodeClick -> navigateToQrCodeFragment()
+        }
+    }
+
+    private fun navigateToWorkSoonCourierFragment(issue: IssueModel) {
+        val action = AddressFragmentDirections
+            .actionAddressFragmentToWorkSoonCourierFragment(issue)
+        findNavController().navigate(action)
+    }
+
+    private fun navigateToWorkSoonOfficeFragment(issue: IssueModel) {
+        val action = AddressFragmentDirections
+            .actionAddressFragmentToWorkSoonOfficeFragment(issue)
+        findNavController().navigate(action)
+    }
+
+    private fun navigateToQrCodeFragment() {
+        findNavController().navigate(R.id.action_addressFragment_to_qrCodeFragment)
+    }
+
+    private fun bindViews() {
         binding.floatingActionButton.setOnClickListener {
             NavHostFragment.findNavController(this)
                 .navigate(R.id.action_addressFragment_to_authFragment)
@@ -71,7 +209,9 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
         binding.swipeContainer.setOnRefreshListener {
             mViewModel.getDataList(true)
         }
+    }
 
+    private fun initActivityObservers() {
         mainActivityViewModel.navigationToAddressAuthFragmentAction.observe(
             viewLifecycleOwner,
             EventObserver {
@@ -88,14 +228,16 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
                 mViewModel.getDataList(true)
             }
         )
+    }
 
+    private fun initObservers() {
+        val adapter = mustBeInitialized(adapter)
         mViewModel.dataList.observe(
             viewLifecycleOwner
-        ) {
+        ) { addressList ->
             // val items = ParentDataFactory.getParents(5) + it
-            binding.tvEmptyList.isVisible = it.isEmpty()
-            adapter?.items = it
-            adapter?.notifyDataSetChanged()
+            binding.tvEmptyList.isVisible = addressList.isEmpty()
+            adapter.submitList(addressList)
             binding.swipeContainer.isRefreshing = false
             updateAllWidget(requireContext())
 
@@ -121,122 +263,11 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
         )
     }
 
-    private fun initRecycler() {
-        adapter = ParentListAdapter(
-            ParentListAdapterSetting(
-                context = requireContext(),
-                clickOpen = { domophoneId, doorId ->
-                    mViewModel.openDoor(domophoneId, doorId)
-                },
-                clickPos = { position, isExpanded ->
-                    if (isExpanded) {
-                        val layoutManager = recyclerView.layoutManager as LinearLayoutManager
-                        val smoothScroller: SmoothScroller = object : LinearSmoothScroller(context) {
-                            override fun getVerticalSnapPreference(): Int {
-                                return SNAP_TO_START
-                            }
-                        }
-                        smoothScroller.targetPosition = position
-                        layoutManager.startSmoothScroll(smoothScroller)
-                    }
-                    (adapter?.items?.get(position) as? ParentModel)?.let { parent ->
-                        if (isExpanded) {
-                            mViewModel.expandedHouseId.add(parent.houseId)
-                        } else {
-                            mViewModel.expandedHouseId.remove(parent.houseId)
-                        }
-                        parent.isExpanded = isExpanded
-                    }
-                },
-                clickItemIssue = {
-                    if (it.courier) {
-                        val action =
-                            AddressFragmentDirections.actionAddressFragmentToWorkSoonOfficeFragment(
-                                it
-                            )
-                        this.findNavController().navigate(action)
-                    } else {
-                        val action =
-                            AddressFragmentDirections.actionAddressFragmentToWorkSoonCourierFragment(
-                                it
-                            )
-                        this.findNavController().navigate(action)
-                    }
-                },
-                clickQrCode = {
-                    this.findNavController().navigate(R.id.action_addressFragment_to_qrCodeFragment)
-                },
-                clickCamera = {
-                    if (DataModule.providerConfig.cctvView == CCTVViewTypeType.TREE
-                        || DataModule.providerConfig.cctvView == CCTVViewTypeType.USER_DEFINED && !mViewModel.mPreferenceStorage.showCamerasOnMap)
-                    {
-                        mCCTVViewModel.getCamerasTree(it.toParcelable()) {
-                            val group = mCCTVViewModel.cameraGroups.value
-                            mCCTVViewModel.chosenIndex.value = null
-                            mCCTVViewModel.chosenCamera.value = null
-                            mCCTVViewModel.chooseGroup(group?.groupId ?: CCTVDataTree.DEFAULT_GROUP_ID)
-                            mCCTVViewModel.getCameraList(group?.cameras ?: listOf(), group?.type ?: CCTVRepresentationType.MAP) {
-                                val action = if (group?.type == CCTVRepresentationType.LIST) AddressFragmentDirections.actionAddressFragmentToCCTVTreeFragment(group) else AddressFragmentDirections.actionAddressFragmentToMapCameraFragment()
-                                this.findNavController().navigate(action)
-                            }
-                        }
-                    } else {
-                        mCCTVViewModel.getCameras(it.toParcelable()) {
-                            this.findNavController().navigate(R.id.action_addressFragment_to_mapCameraFragment)
-                        }
-                    }
-                },
-                clickEventLog = {
-                    mEventLog.address = it.address
-                    mEventLog.flatsAll = it.flats
-                    mEventLog.filterFlat = null
-                    mEventLog.currentEventDayFilter = null
-                    mEventLog.lastLoadedDayFilterIndex.value = -1
-                    mEventLog.currentEventItem = null
-                    mEventLog.getAllFaces()
-                    
-                    this.findNavController().navigate(R.id.action_addressFragment_to_eventLogFragment)
-                }
-            )
-        )
-        recyclerView = binding.rvParent
-        recyclerView.apply {
-            layoutManager = LinearLayoutManager(context, RecyclerView.VERTICAL, false)
-        }
-        recyclerView.adapter = adapter
-
-        recyclerView.addOnScrollListener(object : OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                super.onScrolled(recyclerView, dx, dy)
-                if (dy > 0 && binding.floatingActionButton.visibility == View.VISIBLE) {
-                    binding.floatingActionButton.hide()
-                } else if (dy < 0 && binding.floatingActionButton.visibility != View.VISIBLE) {
-                    binding.floatingActionButton.show()
-                }
-
-                if (!recyclerView.canScrollVertically(-1)
-                    && binding.floatingActionButton.visibility != View.VISIBLE) {
-                    binding.floatingActionButton.show()
-                }
-            }
-        })
-    }
-
     override fun onDismiss(dialog: GuestAccessDialogFragment) {
         dialog.dismiss()
     }
 
     override fun onShare() {}
-
-    private var receiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            Timber.d("debug_dmm address")
-            intent?.let {
-                mViewModel.nextListNoCache = true
-                mViewModel.getDataList()
-            }
-        }
-    }
 
     override fun onStart() {
         super.onStart()
@@ -256,4 +287,15 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
             LocalBroadcastManager.getInstance(it).unregisterReceiver(receiver)
         }
     }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+
+        binding.addressList.adapter = null
+        adapter = null
+        _binding = null
+    }
+
+    private fun <T> mustBeInitialized(value: T?): T =
+        requireNotNull(value, { "Value must be initialized at this point" })
 }
