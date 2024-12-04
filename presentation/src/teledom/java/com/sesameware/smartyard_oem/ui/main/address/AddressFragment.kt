@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.RecyclerView
@@ -31,6 +32,7 @@ import com.sesameware.smartyard_oem.ui.main.address.adapters.AddressListAdapter
 import com.sesameware.smartyard_oem.ui.main.address.cctv_video.CCTVViewModel
 import com.sesameware.smartyard_oem.ui.main.address.event_log.EventLogViewModel
 import com.sesameware.smartyard_oem.ui.main.address.guestAccessDialog.GuestAccessDialogFragment
+import com.sesameware.smartyard_oem.ui.main.address.helpers.DragToSortVerticalForwardListCallback
 import com.sesameware.smartyard_oem.ui.main.address.models.AddressAction
 import com.sesameware.smartyard_oem.ui.main.address.models.IssueAction
 import com.sesameware.smartyard_oem.ui.main.address.models.IssueModel
@@ -62,8 +64,7 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
         override fun onReceive(context: Context?, intent: Intent?) {
             Timber.d("debug_dmm address")
             intent?.let {
-                mViewModel.nextListNoCache = true
-                mViewModel.getDataList()
+                mViewModel.getDataList(true)
             }
         }
     }
@@ -104,8 +105,10 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
         adapter = AddressListAdapter(::onAddressAction, ::onIssueAction)
         binding.addressList.let {
             it.adapter = adapter
-
             it.addOnScrollListener(showHideFabListener)
+            val callback = DragToSortVerticalForwardListCallback(mViewModel::setHouseItemSavedPosition)
+            val helper = ItemTouchHelper(callback)
+            helper.attachToRecyclerView(it)
         }
     }
 
@@ -117,8 +120,7 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
                 navigateToEventLogFragment()
             }
             is OnExpandClick -> {
-                mViewModel.setAddressItemExpanded(action.position, action.isExpanded)
-
+                mViewModel.setHouseItemExpanded(action.position, action.isExpanded)
             }
             is OnOpenEntranceClick -> mViewModel.openDoor(action.entranceId)
             is OnItemFullyExpanded -> scrollUntilFullItemVisible(action.position)
@@ -232,10 +234,9 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
 
     private fun initObservers() {
         val adapter = mustBeInitialized(adapter)
-        mViewModel.dataList.observe(
+        mViewModel.addressUiState.observe(
             viewLifecycleOwner
         ) { addressList ->
-            // val items = ParentDataFactory.getParents(5) + it
             binding.tvEmptyList.isVisible = addressList.isEmpty()
             adapter.submitList(addressList)
             binding.swipeContainer.isRefreshing = false
@@ -254,7 +255,7 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
             binding.swipeContainer.isRefreshing = false
         }
 
-        mViewModel.navigationToAuth.observe(
+        mViewModel.navigateToAuth.observe(
             viewLifecycleOwner,
             EventObserver {
                 NavHostFragment.findNavController(this)
@@ -297,5 +298,5 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
     }
 
     private fun <T> mustBeInitialized(value: T?): T =
-        requireNotNull(value, { "Value must be initialized at this point" })
+        requireNotNull(value) { "Value must be initialized at this point" }
 }

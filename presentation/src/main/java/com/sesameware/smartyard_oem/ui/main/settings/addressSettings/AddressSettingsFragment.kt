@@ -12,8 +12,6 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.fragment.findNavController
-import org.koin.androidx.viewmodel.ext.android.sharedViewModel
-import org.koin.androidx.viewmodel.ext.android.viewModel
 import com.sesameware.domain.model.TF
 import com.sesameware.smartyard_oem.EventObserver
 import com.sesameware.smartyard_oem.R
@@ -26,6 +24,8 @@ import com.sesameware.smartyard_oem.ui.main.settings.accessAddress.dialogDeleteR
 import com.sesameware.smartyard_oem.ui.main.settings.accessAddress.dialogDeleteReason.DialogDeleteReasonFragment.OnGuestDeleteListener
 import com.sesameware.smartyard_oem.ui.showStandardAlert
 import com.sesameware.smartyard_oem.ui.webview_dialog.WebViewDialogFragment
+import org.koin.androidx.viewmodel.ext.android.sharedViewModel
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class AddressSettingsFragment : Fragment() {
     private var _binding: FragmentAddressSettingsBinding? = null
@@ -321,8 +321,6 @@ class AddressSettingsFragment : Fragment() {
                 null,
                 null
             )
-            mAddressVM.nextListNoCache = true
-            mSettingsVM.nextListNoCache = true
         }
 
         binding.switchOwnerEventLog.setOnCheckedChangeListener { _, isChecked ->

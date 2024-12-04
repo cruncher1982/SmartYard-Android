@@ -16,11 +16,14 @@ import com.sesameware.smartyard_oem.Event
 import com.sesameware.smartyard_oem.GenericViewModel
 import com.sesameware.smartyard_oem.R
 import com.sesameware.smartyard_oem.ui.main.address.event_log.Flat
-import com.sesameware.smartyard_oem.ui.main.address.models.AddressListItem
-import com.sesameware.smartyard_oem.ui.main.address.models.HouseState
+import com.sesameware.smartyard_oem.ui.main.address.helpers.CombinedLiveData
+import com.sesameware.smartyard_oem.ui.main.address.models.AddressUiModel
 import com.sesameware.smartyard_oem.ui.main.address.models.EntranceId
 import com.sesameware.smartyard_oem.ui.main.address.models.EntranceState
+import com.sesameware.smartyard_oem.ui.main.address.models.HouseUiModel
 import com.sesameware.smartyard_oem.ui.main.address.models.IssueModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 class AddressViewModel(
@@ -31,19 +34,29 @@ class AddressViewModel(
     override val mDatabaseInteractor: DatabaseInteractor
 ) : GenericViewModel() {
 
-    private val _dataList = MutableLiveData<List<AddressListItem>>()
-    val dataList: LiveData<List<AddressListItem>>
-        get() = _dataList
+    private val houseUiState = MutableLiveData<List<HouseUiModel>>()
+    private val issueUiState = MutableLiveData<List<IssueModel>>()
+    val addressUiState = CombinedLiveData<List<AddressUiModel>>(
+        houseUiState,
+        issueUiState
+    ) { list ->
+        list.reduceOrNull { acc, models -> acc + models } ?: listOf()
+    }
 
     private val _progress = MutableLiveData<Boolean>()
-    val progress: LiveData<Boolean>
-        get() = _progress
-    private val _navigationToAuth = MutableLiveData<Event<Unit>>()
-    val navigationToAuth: LiveData<Event<Unit>>
-        get() = _navigationToAuth
+    val progress: LiveData<Boolean> get() = _progress
+
+    private val _navigateToAuth = MutableLiveData<Event<Unit>>()
+    val navigateToAuth: LiveData<Event<Unit>> get() = _navigateToAuth
 
     var houseIdFlats: HashMap<Int, List<Flat>> = hashMapOf()
         private set
+
+    private val expandedHouseIds: MutableSet<Int> =
+        mPreferenceStorage.expandedHouseIds?.toMutableSet() ?: mutableSetOf()
+
+    private val houseIdPositions: MutableMap<Int, Int> =
+        mPreferenceStorage.houseIdPositions?.toMutableMap() ?: mutableMapOf()
 
     fun openDoor(id: EntranceId) {
         viewModelScope.withProgress {
@@ -51,28 +64,57 @@ class AddressViewModel(
         }
     }
 
-    //учитывать ли кэш при следующем запросе списка адресов
-    var nextListNoCache = true
-
     init {
         getDataList()
     }
 
-    fun setAddressItemExpanded(position: Int, isExpanded: Boolean) {
-        val addressList = _dataList.value?.toMutableList() ?: return
-        val listItem = try {
-            addressList[position]
-        } catch (e: Exception) {
-            return
-        }
-        if (listItem !is HouseState) return
-
-        val newState = listItem.copy(isExpanded = isExpanded)
-        addressList[position] = newState
-        _dataList.postValue(addressList)
+    fun setHouseItemExpanded(position: Int, isExpanded: Boolean) {
+        val list = houseUiState.value?.toMutableList() ?: return
+        val newState = list[position].copy(isExpanded = isExpanded)
+        list[position] = newState
+        houseUiState.value = list
+        if (isExpanded) expandedHouseIds.add(newState.houseId)
+        else expandedHouseIds.remove(newState.houseId)
     }
 
-    private suspend fun getHouseIdFlats(): HashMap<Int, List<Flat>> {
+    fun setHouseItemSavedPosition(oldPosition: Int, newPosition: Int) {
+        val list = houseUiState.value?.toMutableList() ?: return
+        // Ignore Issue items, and House items moved over Issue items
+        if (oldPosition >= list.size || newPosition >= list.size ) return
+        houseIdPositions[list[oldPosition].houseId] = newPosition
+        houseIdPositions[list[newPosition].houseId] = oldPosition
+        val state = list.removeAt(oldPosition)
+        list.add(newPosition, state)
+        houseUiState.value = list
+    }
+
+    private fun saveHousesPositions(list: List<HouseUiModel>) {
+        val pairs = list.take(MAX_SAVED_POSITIONS)
+            .mapIndexed { i, house -> house.houseId to i }
+            .toTypedArray()
+        houseIdPositions.clear()
+        houseIdPositions.putAll(mapOf(*pairs))
+    }
+
+    fun getDataList(forceRefresh: Boolean = false) {
+        viewModelScope.withProgress(progress = _progress) {
+            populateHouseIdFlats(forceRefresh)
+            launch(Dispatchers.IO) {
+                val houses = getHouses(forceRefresh)
+                houseUiState.postValue(houses)
+                saveHousesPositions(houses)
+            }
+            launch(Dispatchers.IO) {
+                issueUiState.postValue(getIssues(forceRefresh))
+            }
+        }
+        viewModelScope.withProgress(progress = null) {
+            getIssues(forceRefresh)
+        }
+    }
+
+    private suspend fun populateHouseIdFlats(forceRefresh: Boolean) {
+        mPreferenceStorage.xDmApiRefresh = forceRefresh
         val res = addressInteractor.getSettingsList()
         val houseFlats = hashMapOf<Int, MutableSet<Int>>()
         val flatToNumber = hashMapOf<Int, String>()
@@ -96,51 +138,25 @@ class AddressViewModel(
         }
 
         Timber.d("debug_dmm houseIdFlats = $houseIdFlats")
-        return houseIdFlats
+        this.houseIdFlats = houseIdFlats
     }
 
-    fun getDataList(forceRefresh: Boolean = false) {
-        val noCache = nextListNoCache || forceRefresh
-        nextListNoCache = false
-        viewModelScope.withProgress(
-            handleError = {
-                true
-            },
-            progress = _progress
-        ) {
-            populateData(noCache)
-        }
-    }
-
-    private suspend fun populateData(noCache: Boolean) {
-        if (noCache) {
-            mPreferenceStorage.xDmApiRefresh = true
-        }
-        houseIdFlats = getHouseIdFlats()
-        if (noCache) {
-            mPreferenceStorage.xDmApiRefresh = true
-        }
+    private suspend fun getHouses(forceRefresh: Boolean): List<HouseUiModel> {
+        mPreferenceStorage.xDmApiRefresh = forceRefresh
         val response = addressInteractor.getAddressList()
         if (response?.data == null) {
-            _dataList.value = listOf()
             if (!mPreferenceStorage.whereIsContractWarningSeen) {
-                _navigationToAuth.value = (Event(Unit))
+                _navigateToAuth.value = (Event(Unit))
             }
-            return
+            return listOf()
         }
 
         Timber.d(this.javaClass.simpleName, response.data.size)
         mDatabaseInteractor.deleteAll()
 
-        val expandedHouseIds = dataList.value?.asSequence()
-            ?.filterIsInstance<HouseState>()
-            ?.filter { it.isExpanded }
-            ?.map { it.houseId }
-            ?.toSet()
-            ?: setOf()
+        if (response.data.isEmpty()) return emptyList()
 
-        val addressListDto = response.data
-        val houseStateList = addressListDto.map { addressDto ->
+        val houseList = response.data.map { addressDto ->
             val entranceList = addressDto.doors.map { entranceDto ->
                 addToWidgetDatabase(entranceDto, addressDto)
                 EntranceState(
@@ -161,42 +177,53 @@ class AddressViewModel(
             val houseHasEntrances = entranceList.isNotEmpty()
             val houseHasFlats = houseIdFlats[addressDto.houseId]?.isNotEmpty() ?: false
             val isExpanded = expandedHouseIds.contains(addressDto.houseId)
-            HouseState(
+            HouseUiModel(
                 houseId = addressDto.houseId,
                 address = addressDto.address,
                 entranceList = entranceList,
                 cameraCount = addressDto.cctv,
                 hasEventLog = addressDto.hasPlog && houseHasEntrances && houseHasFlats,
-                isExpanded = isExpanded
+                isExpanded = isExpanded,
             )
         }.toMutableList()
 
-        houseStateList.sortWith(
-            compareBy(
+        houseList.sortWith(
+            compareBy<HouseUiModel>(
+                { houseIdPositions[it.houseId] },
                 { it.entranceList.isEmpty() },
-                { it.address }
+                { it.address },
+
             )
         )
 
-        if (expandedHouseIds.isEmpty()) {
-            val newState = houseStateList[0].copy(isExpanded = true)
-            houseStateList[0] = newState
+        val firstLaunch = mPreferenceStorage.justRegistered
+        if (firstLaunch && expandedHouseIds.isEmpty()) {
+            val newState = houseList[0].copy(isExpanded = true)
+            houseList[0] = newState
+            expandedHouseIds.add(newState.houseId)
+            mPreferenceStorage.justRegistered = false
         }
 
-        val issuesList = if (DataModule.providerConfig.issuesVersion != "2") {
+        return houseList
+    }
+
+    private suspend fun getIssues(forceRefresh: Boolean): List<IssueModel> {
+        mPreferenceStorage.xDmApiRefresh = forceRefresh
+        val issueList = if (DataModule.providerConfig.issuesVersion != "2") {
             issueInteractor.listConnectIssue()?.data
         } else {
             issueInteractor.listConnectIssueV2()?.data
         }
-        _dataList.value = houseStateList.plus(
-            issuesList?.map {
-                IssueModel(
-                    it.address ?: "",
-                    it.key ?: "",
-                    it.courier ?: ""
-                )
-            } ?: emptyList()
-        )
+
+        val issueModelList = issueList?.map {
+            IssueModel(
+                it.address ?: "",
+                it.key ?: "",
+                it.courier ?: ""
+            )
+        } ?: emptyList()
+
+        return issueModelList
     }
 
     private suspend fun addToWidgetDatabase(
@@ -215,4 +242,15 @@ class AddressViewModel(
                 )
             )
     }
+
+    override fun onCleared() {
+        if (mPreferenceStorage.phone == null) return
+        mPreferenceStorage.expandedHouseIds = expandedHouseIds
+        mPreferenceStorage.houseIdPositions = houseIdPositions
+    }
+
+    companion object {
+        private const val MAX_SAVED_POSITIONS = 100
+    }
 }
+

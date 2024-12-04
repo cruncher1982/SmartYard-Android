@@ -18,12 +18,12 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.OnScrollListener
 import androidx.recyclerview.widget.RecyclerView.SmoothScroller
 import com.hannesdorfmann.adapterdelegates4.ListDelegationAdapter
-import org.koin.androidx.viewmodel.ext.android.sharedViewModel
 import com.sesameware.smartyard_oem.EventObserver
 import com.sesameware.smartyard_oem.databinding.FragmentSettingsBinding
 import com.sesameware.smartyard_oem.ui.main.MainActivity
 import com.sesameware.smartyard_oem.ui.main.MainActivityViewModel
 import com.sesameware.smartyard_oem.ui.main.settings.dialog.DialogServiceFragment
+import org.koin.androidx.viewmodel.ext.android.sharedViewModel
 import timber.log.Timber
 
 class SettingsFragment : Fragment() {
@@ -188,8 +188,7 @@ class SettingsFragment : Fragment() {
         override fun onReceive(context: Context?, intent: Intent?) {
             Timber.d("debug_dmm lo")
             intent?.let {
-                mViewModel.nextListNoCache = true
-                mViewModel.getDataList()
+                mViewModel.getDataList(true)
             }
         }
     }

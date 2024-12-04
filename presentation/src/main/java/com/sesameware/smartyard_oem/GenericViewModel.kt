@@ -74,11 +74,17 @@ open class GenericViewModel : ViewModel(), KoinComponent {
 
     fun logout(context: Context) {
         viewModelScope.withProgress({ false }) {
-            mPreferenceStorage.providerId = null
-            mPreferenceStorage.providerBaseUrl = null
-            mPreferenceStorage.authToken = null
-            mPreferenceStorage.sentName = null
-            mPreferenceStorage.pushTokenRegistered = null
+            mPreferenceStorage.apply {
+                providerId = null
+                providerBaseUrl = null
+                authToken = null
+                sentName = null
+                phone = null
+                pushTokenRegistered = null
+                houseIdPositions = null
+                expandedHouseIds = null
+                justRegistered = true
+            }
             mDatabaseInteractor.deleteAll()
             DataModule.BASE_URL = BuildConfig.PROVIDER_URL
             refreshPushToken(context.applicationContext)

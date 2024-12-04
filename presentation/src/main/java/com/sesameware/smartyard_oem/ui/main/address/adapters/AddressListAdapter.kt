@@ -3,6 +3,7 @@ package com.sesameware.smartyard_oem.ui.main.address.adapters
 import android.os.Handler
 import android.os.Looper
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.recyclerview.widget.DiffUtil
@@ -14,9 +15,9 @@ import com.sesameware.smartyard_oem.databinding.ItemIssueBinding
 import com.sesameware.smartyard_oem.databinding.ItemVideoCameraBinding
 import com.sesameware.smartyard_oem.databinding.ItemYardBinding
 import com.sesameware.smartyard_oem.ui.main.address.models.AddressAction
-import com.sesameware.smartyard_oem.ui.main.address.models.AddressListItem
-import com.sesameware.smartyard_oem.ui.main.address.models.HouseState
+import com.sesameware.smartyard_oem.ui.main.address.models.AddressUiModel
 import com.sesameware.smartyard_oem.ui.main.address.models.EntranceState
+import com.sesameware.smartyard_oem.ui.main.address.models.HouseUiModel
 import com.sesameware.smartyard_oem.ui.main.address.models.IssueAction
 import com.sesameware.smartyard_oem.ui.main.address.models.IssueModel
 import com.sesameware.smartyard_oem.ui.main.address.models.OnCameraClick
@@ -35,11 +36,11 @@ typealias IssueCallback = (IssueAction) -> Unit
 class AddressListAdapter(
     private val addressCallback: AddressCallback,
     private val issueCallback: IssueCallback
-) : ListAdapter<AddressListItem, RecyclerView.ViewHolder>(DiffCallback) {
+) : ListAdapter<AddressUiModel, RecyclerView.ViewHolder>(DiffCallback) {
 
     override fun getItemViewType(position: Int): Int {
         return when (getItem(position)) {
-            is HouseState -> ADDRESS_STATE
+            is HouseUiModel -> ADDRESS_STATE
             is IssueModel -> ISSUE_MODEL
         }
     }
@@ -54,7 +55,7 @@ class AddressListAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (holder) {
             is AddressViewHolder -> {
-                val state = getItem(position) as HouseState
+                val state = getItem(position) as HouseUiModel
                 holder.bind(state, addressCallback)
             }
             is IssueViewHolder -> {
@@ -75,14 +76,14 @@ class AddressListAdapter(
         }
     }
 
-    private companion object DiffCallback : DiffUtil.ItemCallback<AddressListItem>() {
+    private companion object DiffCallback : DiffUtil.ItemCallback<AddressUiModel>() {
 
         private const val ADDRESS_STATE = 0
         private const val ISSUE_MODEL = 1
 
-        override fun areItemsTheSame(oldItem: AddressListItem, newItem: AddressListItem) =
+        override fun areItemsTheSame(oldItem: AddressUiModel, newItem: AddressUiModel) =
             when {
-                oldItem is HouseState && newItem is HouseState -> {
+                oldItem is HouseUiModel && newItem is HouseUiModel -> {
                     oldItem.houseId == newItem.houseId
                 }
                 oldItem is IssueModel && newItem is IssueModel -> {
@@ -91,9 +92,9 @@ class AddressListAdapter(
                 else -> false
             }
 
-        override fun areContentsTheSame(oldItem: AddressListItem, newItem: AddressListItem) =
+        override fun areContentsTheSame(oldItem: AddressUiModel, newItem: AddressUiModel) =
             when {
-                oldItem is HouseState && newItem is HouseState -> {
+                oldItem is HouseUiModel && newItem is HouseUiModel -> {
                     oldItem == newItem
                 }
                 oldItem is IssueModel && newItem is IssueModel -> {
@@ -102,8 +103,8 @@ class AddressListAdapter(
                 else -> false
             }
 
-        override fun getChangePayload(oldItem: AddressListItem, newItem: AddressListItem): Any? =
-            if (oldItem is HouseState && newItem is HouseState &&
+        override fun getChangePayload(oldItem: AddressUiModel, newItem: AddressUiModel): Any? =
+            if (oldItem is HouseUiModel && newItem is HouseUiModel &&
                 oldItem.isExpanded != newItem.isExpanded) true else null
 
     }
@@ -113,7 +114,7 @@ private class AddressViewHolder private constructor(
     private val binding: ItemAddressBinding
 ) : RecyclerView.ViewHolder(binding.root) {
 
-    fun bind(state: HouseState, callback: AddressCallback) {
+    fun bind(state: HouseUiModel, callback: AddressCallback) {
         with (binding) {
             addressTitle.text = state.address
             expandAddress.isSelected = state.isExpanded
@@ -128,11 +129,13 @@ private class AddressViewHolder private constructor(
                     lastFraction = expansionFraction
                 }
             })
-            expandAddress.setOnClickListener {
+            val onHeaderClickListener = View.OnClickListener {
                 expandAddress.isSelected = !expandAddress.isSelected
                 callback(OnExpandClick(bindingAdapterPosition, expandAddress.isSelected))
                 expandableLayout.toggle()
             }
+            addressTitle.setOnClickListener(onHeaderClickListener)
+            expandAddress.setOnClickListener(onHeaderClickListener)
 
             addressContent.removeAllViews()
             addEntrances(addressContent, state.entranceList, callback)

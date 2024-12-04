@@ -13,7 +13,7 @@ data class IssueModel(
     var address: String = "",
     var key: String = "",
     var _courier: String = ""
-) : DisplayableItem, AddressListItem, Parcelable {
+) : DisplayableItem, AddressUiModel, Parcelable {
     val courier: Boolean
         get() = _courier == "t"
 }

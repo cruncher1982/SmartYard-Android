@@ -9,6 +9,7 @@ import com.google.gson.Gson
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
+
 interface PreferenceStorage {
     var authToken: String?
     var pushToken: String?
@@ -24,6 +25,9 @@ interface PreferenceStorage {
     var providerId: String?
     var providerBaseUrl: String?
     var showCamerasOnMap: Boolean
+    var houseIdPositions: Map<Int, Int>?
+    var expandedHouseIds: Set<Int>?
+    var justRegistered: Boolean
 }
 
 /**
@@ -50,6 +54,9 @@ class SharedPreferenceStorage constructor(
         const val PREF_PROVIDER_ID = "PREF_PROVIDER_ID"
         const val PREF_PROVIDER_BASE_URL = "PREF_PROVIDER_BASE_URL"
         const val PREF_SHOW_CAMERAS_ON_MAP = "PREF_SHOW_CAMERAS_ON_MAP"
+        const val PREFS_HOUSE_ID_POSITIONS = "PREFS_HOUSE_ID_POSITIONS"
+        const val PREFS_EXPANDED_HOUSE_IDS = "PREFS_EXPANDED_HOUSE_IDS"
+        const val PREFS_JUST_REGISTERED = "PREFS_ADDRESS_LIST_FIRST_LAUNCH"
     }
 
     private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -84,6 +91,18 @@ class SharedPreferenceStorage constructor(
     override var providerId by StringPreference(prefs, PREF_PROVIDER_ID, null)
     override var providerBaseUrl by StringPreference(prefs, PREF_PROVIDER_BASE_URL, null)
     override var showCamerasOnMap by BooleanPreference(prefs, PREF_SHOW_CAMERAS_ON_MAP, true)
+    override var houseIdPositions: Map<Int, Int>? by MapPreference(
+        prefs,
+        PREFS_HOUSE_ID_POSITIONS,
+        getHouseIdPositionsConverter()
+    )
+    override var expandedHouseIds: Set<Int>? by SetPreference(
+        prefs,
+        PREFS_EXPANDED_HOUSE_IDS,
+        getExpandedHouseIdsConverter()
+    )
+    override var justRegistered by BooleanPreference(prefs,
+        PREFS_JUST_REGISTERED, true)
 }
 
 class SerializablePreferenceNullable<T>(
@@ -105,6 +124,7 @@ class SerializablePreferenceNullable<T>(
         preferences.edit { putString(name, gson.toJson(value)) }
     }
 }
+
 class SerializablePreference<T>(
     private val preferences: SharedPreferences,
     private val name: String,
@@ -172,3 +192,69 @@ class IntPreference(
         preferences.edit { putInt(name, value) }
     }
 }
+
+class MapPreference<K, V>(
+    private val preferences: SharedPreferences,
+    private val name: String,
+    private val converter: MapConverter<K, V>
+) : ReadWriteProperty<Any, Map<K, V>?> {
+
+    @WorkerThread
+    override fun getValue(thisRef: Any, property: KProperty<*>): Map<K, V>? {
+        val stringSet = preferences.getStringSet(name, null) ?: return null
+        val map = mutableMapOf<K, V>()
+        stringSet.forEach { line ->
+            val (kSt, vSt) = line.split(DELIMITER)
+            map[converter.keyFromString(kSt)] = converter.valueFromString(vSt)
+        }
+        return map
+    }
+
+    override fun setValue(thisRef: Any, property: KProperty<*>, value: Map<K, V>?) {
+        val stringSet = value?.map { e ->
+            "${e.key.toString()}$DELIMITER${e.value.toString()}" }?.toSet()
+        preferences.edit { putStringSet(name, stringSet) }
+    }
+
+    companion object {
+        private const val DELIMITER = "_"
+    }
+}
+
+class SetPreference<T>(
+    private val preferences: SharedPreferences,
+    private val name: String,
+    private val converter: SetConverter<T>
+) : ReadWriteProperty<Any, Set<T>?> {
+
+    @WorkerThread
+    override fun getValue(thisRef: Any, property: KProperty<*>): Set<T>? {
+        val stringSet = preferences.getStringSet(name, null) ?: return null
+        return stringSet.map { converter.fromString(it)}.toSet()
+    }
+
+    override fun setValue(thisRef: Any, property: KProperty<*>, value: Set<T>?) {
+        val stringSet = value?.map { it.toString() }?.toSet()
+        preferences.edit { putStringSet(name, stringSet) }
+    }
+}
+
+interface MapConverter<K, V> {
+    fun keyFromString(s: String): K
+    fun valueFromString(s: String): V
+}
+
+interface SetConverter<T> {
+    fun fromString(s: String): T
+}
+
+private fun getHouseIdPositionsConverter() : MapConverter<Int, Int> =
+    object : MapConverter<Int, Int> {
+        override fun keyFromString(s: String): Int = s.toInt()
+        override fun valueFromString(s: String): Int = s.toInt()
+    }
+
+private fun getExpandedHouseIdsConverter(): SetConverter<Int> =
+    object : SetConverter<Int> {
+        override fun fromString(s: String): Int = s.toInt()
+    }

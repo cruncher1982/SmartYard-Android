@@ -11,7 +11,6 @@ import com.sesameware.domain.model.Services
 import com.sesameware.smartyard_oem.Event
 import com.sesameware.smartyard_oem.GenericViewModel
 import com.sesameware.smartyard_oem.R
-import timber.log.Timber
 
 /**
  * @author Nail Shakurov
@@ -98,11 +97,8 @@ class SettingsViewModel(
     }
 
     fun getDataList(forceRefresh: Boolean = false) {
-        Timber.d("__Q__ call getDataList,  cache = $nextListNoCache")
-        val noCache = nextListNoCache || forceRefresh
-        nextListNoCache = false
         viewModelScope.withProgress(progress = progress) {
-            if (noCache) {
+            if (forceRefresh) {
                 mPreferenceStorage.xDmApiRefresh = true
             }
             val res = addressInteractor.getSettingsList()
