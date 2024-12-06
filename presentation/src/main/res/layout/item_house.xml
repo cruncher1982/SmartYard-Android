@@ -11,7 +11,7 @@
 
 
     <TextView
-        android:id="@+id/address_title"
+        android:id="@+id/house_address"
         style="@style/Base.TextAppearance.AppCompat.Subhead"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -19,21 +19,21 @@
         android:padding="24dp"
         android:textColor="@color/black"
         android:textSize="14sp"
-        app:layout_constraintEnd_toStartOf="@+id/expand_address"
+        app:layout_constraintEnd_toStartOf="@+id/expand_house"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@id/expandable_layout"
         tools:text="@string/address_sample"/>
 
     <ImageView
-        android:id="@+id/expand_address"
+        android:id="@+id/expand_house"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_marginEnd="8dp"
         android:scaleType="centerInside"
-        app:layout_constraintBottom_toBottomOf="@+id/address_title"
+        app:layout_constraintBottom_toBottomOf="@+id/house_address"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/address_title"
+        app:layout_constraintTop_toTopOf="@+id/house_address"
         app:srcCompat="@drawable/ic_expand"
         tools:ignore="ContentDescription" />
 
@@ -44,10 +44,10 @@
         app:el_duration="300"
         app:el_expanded="false"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/address_title">
+        app:layout_constraintTop_toBottomOf="@+id/house_address">
 
         <LinearLayout
-            android:id="@+id/address_content"
+            android:id="@+id/house_content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_alignParentTop="true"

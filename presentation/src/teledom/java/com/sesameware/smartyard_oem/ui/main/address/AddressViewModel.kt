@@ -88,6 +88,18 @@ class AddressViewModel(
         houseUiState.value = list
     }
 
+    fun onItemDrag() {
+        val list = houseUiState.value?.toMutableList() ?: return
+        val collapsedList = list.map { it.copy(isExpanded = false) }
+        houseUiState.value = collapsedList
+    }
+
+    fun onItemRelease() {
+        val list = houseUiState.value?.toMutableList() ?: return
+        val expandedList = list.map { it.copy(isExpanded = expandedHouseIds.contains(it.houseId)) }
+        houseUiState.value = expandedList
+    }
+
     private fun saveHousesPositions(list: List<HouseUiModel>) {
         val pairs = list.take(MAX_SAVED_POSITIONS)
             .mapIndexed { i, house -> house.houseId to i }

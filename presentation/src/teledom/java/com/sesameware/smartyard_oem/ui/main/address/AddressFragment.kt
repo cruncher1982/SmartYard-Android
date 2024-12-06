@@ -29,11 +29,12 @@ import com.sesameware.smartyard_oem.databinding.FragmentAddressBinding
 import com.sesameware.smartyard_oem.ui.main.MainActivity
 import com.sesameware.smartyard_oem.ui.main.MainActivityViewModel
 import com.sesameware.smartyard_oem.ui.main.address.adapters.AddressListAdapter
+import com.sesameware.smartyard_oem.ui.main.address.adapters.HouseViewHolder
 import com.sesameware.smartyard_oem.ui.main.address.cctv_video.CCTVViewModel
 import com.sesameware.smartyard_oem.ui.main.address.event_log.EventLogViewModel
 import com.sesameware.smartyard_oem.ui.main.address.guestAccessDialog.GuestAccessDialogFragment
-import com.sesameware.smartyard_oem.ui.main.address.helpers.DragToSortVerticalForwardListCallback
-import com.sesameware.smartyard_oem.ui.main.address.models.AddressAction
+import com.sesameware.smartyard_oem.ui.main.address.helpers.DragToSortCallback
+import com.sesameware.smartyard_oem.ui.main.address.models.HouseAction
 import com.sesameware.smartyard_oem.ui.main.address.models.IssueAction
 import com.sesameware.smartyard_oem.ui.main.address.models.IssueModel
 import com.sesameware.smartyard_oem.ui.main.address.models.OnCameraClick
@@ -59,6 +60,7 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
     private val mEventLog by sharedViewModel<EventLogViewModel>()
 
     private var adapter: AddressListAdapter? = null
+    private var manager: LinearLayoutManager? = null
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -102,17 +104,47 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
     }
 
     private fun initAddressList() {
+        manager = LinearLayoutManager(requireContext())
         adapter = AddressListAdapter(::onAddressAction, ::onIssueAction)
         binding.addressList.let {
+            it.layoutManager = manager
             it.adapter = adapter
             it.addOnScrollListener(showHideFabListener)
-            val callback = DragToSortVerticalForwardListCallback(mViewModel::setHouseItemSavedPosition)
+            val callback = DragToSortCallback(
+                mViewModel::setHouseItemSavedPosition,
+                ::onItemDrag,
+                ::onItemRelease
+            )
             val helper = ItemTouchHelper(callback)
             helper.attachToRecyclerView(it)
         }
     }
 
-    private fun onAddressAction(action: AddressAction) {
+    private fun onItemDrag() {
+        val adapter = requireInitialized(adapter)
+        adapter.onViewDragged()
+        val manager = requireInitialized(manager)
+        val firstVisible = manager.findFirstVisibleItemPosition()
+        val lastVisible = manager.findLastVisibleItemPosition()
+        (firstVisible..lastVisible).forEach {
+            (binding.addressList.findViewHolderForLayoutPosition(it) as? HouseViewHolder)
+                ?.onViewDragged(true)
+        }
+    }
+
+    private fun onItemRelease() {
+        val adapter = requireInitialized(adapter)
+        adapter.onViewReleased()
+        val manager = requireInitialized(manager)
+        val firstVisible = manager.findFirstVisibleItemPosition()
+        val lastVisible = manager.findLastVisibleItemPosition()
+        (firstVisible..lastVisible).forEach {
+            (binding.addressList.findViewHolderForLayoutPosition(it) as? HouseViewHolder)
+                ?.onVisibleViewReleased()
+        }
+    }
+
+    private fun onAddressAction(action: HouseAction) {
         when (action) {
             is OnCameraClick -> navigateToCCTVFragment(action.model)
             is OnEventLogClick -> {
@@ -123,7 +155,7 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
                 mViewModel.setHouseItemExpanded(action.position, action.isExpanded)
             }
             is OnOpenEntranceClick -> mViewModel.openDoor(action.entranceId)
-            is OnItemFullyExpanded -> scrollUntilFullItemVisible(action.position)
+            is OnItemFullyExpanded -> {}//scrollUntilFullItemVisible(action.position)
         }
     }
 
@@ -161,10 +193,9 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
                 group?.cameras ?: listOf(),
                 group?.type ?: CCTVRepresentationType.MAP
             ) {
-                val action =
-                    if (group?.type == CCTVRepresentationType.LIST) AddressFragmentDirections.actionAddressFragmentToCCTVTreeFragment(
-                        group
-                    ) else AddressFragmentDirections.actionAddressFragmentToMapCameraFragment()
+                val action = if (group?.type == CCTVRepresentationType.LIST)
+                    AddressFragmentDirections.actionAddressFragmentToCCTVTreeFragment(group)
+                else AddressFragmentDirections.actionAddressFragmentToMapCameraFragment()
                 this.findNavController().navigate(action)
             }
         }
@@ -243,7 +274,7 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
     }
 
     private fun initObservers() {
-        val adapter = mustBeInitialized(adapter)
+        val adapter = requireInitialized(adapter)
         mViewModel.addressUiState.observe(
             viewLifecycleOwner
         ) { addressList ->
@@ -304,9 +335,10 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
 
         binding.addressList.adapter = null
         adapter = null
+        manager = null
         _binding = null
     }
 
-    private fun <T> mustBeInitialized(value: T?): T =
+    private fun <T> requireInitialized(value: T?): T =
         requireNotNull(value) { "Value must be initialized at this point" }
 }

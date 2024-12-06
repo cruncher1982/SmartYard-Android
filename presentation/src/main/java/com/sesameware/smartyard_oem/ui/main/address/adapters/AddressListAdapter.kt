@@ -9,14 +9,14 @@ import android.widget.LinearLayout
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.sesameware.smartyard_oem.databinding.ItemAddressBinding
 import com.sesameware.smartyard_oem.databinding.ItemEventLogBinding
+import com.sesameware.smartyard_oem.databinding.ItemHouseBinding
 import com.sesameware.smartyard_oem.databinding.ItemIssueBinding
 import com.sesameware.smartyard_oem.databinding.ItemVideoCameraBinding
 import com.sesameware.smartyard_oem.databinding.ItemYardBinding
-import com.sesameware.smartyard_oem.ui.main.address.models.AddressAction
 import com.sesameware.smartyard_oem.ui.main.address.models.AddressUiModel
 import com.sesameware.smartyard_oem.ui.main.address.models.EntranceState
+import com.sesameware.smartyard_oem.ui.main.address.models.HouseAction
 import com.sesameware.smartyard_oem.ui.main.address.models.HouseUiModel
 import com.sesameware.smartyard_oem.ui.main.address.models.IssueAction
 import com.sesameware.smartyard_oem.ui.main.address.models.IssueModel
@@ -30,33 +30,35 @@ import com.sesameware.smartyard_oem.ui.main.address.models.OnQrCodeClick
 import com.sesameware.smartyard_oem.ui.main.address.models.interfaces.VideoCameraModelP
 import net.cachapa.expandablelayout.ExpandableLayout.OnExpansionUpdateListener
 
-typealias AddressCallback = (AddressAction) -> Unit
+typealias HouseCallback = (HouseAction) -> Unit
 typealias IssueCallback = (IssueAction) -> Unit
 
 class AddressListAdapter(
-    private val addressCallback: AddressCallback,
+    private val houseCallback: HouseCallback,
     private val issueCallback: IssueCallback
 ) : ListAdapter<AddressUiModel, RecyclerView.ViewHolder>(DiffCallback) {
 
+    private var isViewDragged = false
+
     override fun getItemViewType(position: Int): Int {
         return when (getItem(position)) {
-            is HouseUiModel -> ADDRESS_STATE
+            is HouseUiModel -> HOUSE_UI_MODEL
             is IssueModel -> ISSUE_MODEL
         }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder =
         when (viewType) {
-            ADDRESS_STATE -> AddressViewHolder.getInstance(parent)
+            HOUSE_UI_MODEL -> HouseViewHolder.getInstance(parent)
             ISSUE_MODEL -> IssueViewHolder.getInstance(parent)
             else -> throw IllegalArgumentException("Invalid type of view type $viewType")
         }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (holder) {
-            is AddressViewHolder -> {
+            is HouseViewHolder -> {
                 val state = getItem(position) as HouseUiModel
-                holder.bind(state, addressCallback)
+                holder.bind(state, houseCallback)
             }
             is IssueViewHolder -> {
                 val state = getItem(position) as IssueModel
@@ -76,9 +78,29 @@ class AddressListAdapter(
         }
     }
 
+    fun onViewDragged() {
+        isViewDragged = true
+    }
+
+    fun onViewReleased() {
+        isViewDragged = false
+    }
+
+    override fun onViewAttachedToWindow(holder: RecyclerView.ViewHolder) {
+        if (isViewDragged) {
+            if (holder is IssueViewHolder) return
+            (holder as HouseViewHolder).onViewDragged(false)
+        }
+    }
+
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        if (holder is IssueViewHolder) return
+        (holder as HouseViewHolder).onViewRecycled()
+    }
+
     private companion object DiffCallback : DiffUtil.ItemCallback<AddressUiModel>() {
 
-        private const val ADDRESS_STATE = 0
+        private const val HOUSE_UI_MODEL = 0
         private const val ISSUE_MODEL = 1
 
         override fun areItemsTheSame(oldItem: AddressUiModel, newItem: AddressUiModel) =
@@ -110,14 +132,35 @@ class AddressListAdapter(
     }
 }
 
-private class AddressViewHolder private constructor(
-    private val binding: ItemAddressBinding
+class HouseViewHolder private constructor(
+    private val binding: ItemHouseBinding
 ) : RecyclerView.ViewHolder(binding.root) {
 
-    fun bind(state: HouseUiModel, callback: AddressCallback) {
+    private var stashedIsExpanded = false
+
+    fun onViewDragged(isVisible: Boolean) {
+        binding.apply {
+            stashedIsExpanded = expandableLayout.isExpanded
+            expandableLayout.setExpanded(false, isVisible)
+            expandHouse.isSelected = false
+        }
+    }
+
+    fun onVisibleViewReleased() {
+        binding.apply {
+            expandableLayout.isExpanded = stashedIsExpanded
+            expandHouse.isSelected = stashedIsExpanded
+        }
+    }
+
+    fun onViewRecycled() {
+        binding.houseContent.removeAllViews()
+    }
+
+    fun bind(state: HouseUiModel, callback: HouseCallback) {
         with (binding) {
-            addressTitle.text = state.address
-            expandAddress.isSelected = state.isExpanded
+            houseAddress.text = state.address
+
             expandableLayout.setExpanded(state.isExpanded, false)
             expandableLayout.setOnExpansionUpdateListener(object : OnExpansionUpdateListener {
                 private var lastFraction = -1f
@@ -129,19 +172,20 @@ private class AddressViewHolder private constructor(
                     lastFraction = expansionFraction
                 }
             })
+
             val onHeaderClickListener = View.OnClickListener {
-                expandAddress.isSelected = !expandAddress.isSelected
-                callback(OnExpandClick(bindingAdapterPosition, expandAddress.isSelected))
+                expandHouse.isSelected = !expandHouse.isSelected
+                callback(OnExpandClick(bindingAdapterPosition, expandHouse.isSelected))
                 expandableLayout.toggle()
             }
-            addressTitle.setOnClickListener(onHeaderClickListener)
-            expandAddress.setOnClickListener(onHeaderClickListener)
+            houseAddress.setOnClickListener(onHeaderClickListener)
+            expandHouse.setOnClickListener(onHeaderClickListener)
+            expandHouse.isSelected = state.isExpanded
 
-            addressContent.removeAllViews()
-            addEntrances(addressContent, state.entranceList, callback)
+            addEntrances(houseContent, state.entranceList, callback)
             val model = VideoCameraModelP(state.houseId, state.address)
-            addCameras(addressContent, model, state.cameraCount, callback)
-            addEventLog(addressContent, state.hasEventLog,
+            addCameras(houseContent, model, state.cameraCount, callback)
+            addEventLog(houseContent, state.hasEventLog,
                 state.address, state.houseId, callback)
         }
     }
@@ -149,7 +193,7 @@ private class AddressViewHolder private constructor(
     private fun addEntrances(
         layout: LinearLayout,
         list: List<EntranceState>,
-        callback: AddressCallback
+        callback: HouseCallback
     ) {
         list.forEach { state ->
             val binding = ItemYardBinding.inflate(LayoutInflater.from(layout.context),
@@ -178,7 +222,7 @@ private class AddressViewHolder private constructor(
         layout: LinearLayout,
         model: VideoCameraModelP,
         count: Int,
-        callback: AddressCallback
+        callback: HouseCallback
     ) {
         if (count == 0) return
 
@@ -197,13 +241,15 @@ private class AddressViewHolder private constructor(
         hasEventLog: Boolean,
         title: String,
         houseId: Int,
-        callback: AddressCallback
+        callback: HouseCallback
     ) {
         if (!hasEventLog) return
 
-        val binding = ItemEventLogBinding.inflate(LayoutInflater.from(layout.context),
-            layout, true)
-        with (binding) {
+        val binding = ItemEventLogBinding.inflate(
+            LayoutInflater.from(layout.context),
+            layout, true
+        )
+        with(binding) {
             root.setOnClickListener {
                 callback(OnEventLogClick(title, houseId))
             }
@@ -211,10 +257,10 @@ private class AddressViewHolder private constructor(
     }
 
     companion object {
-        fun getInstance(parent: ViewGroup) : AddressViewHolder {
-            val binding = ItemAddressBinding.inflate(
+        fun getInstance(parent: ViewGroup) : HouseViewHolder {
+            val binding = ItemHouseBinding.inflate(
                 LayoutInflater.from(parent.context), parent, false)
-            return AddressViewHolder(binding)
+            return HouseViewHolder(binding)
         }
     }
 }

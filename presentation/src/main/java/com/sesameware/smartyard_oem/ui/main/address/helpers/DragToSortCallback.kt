@@ -5,9 +5,17 @@ import android.view.View
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 
-class DragToSortVerticalForwardListCallback(
-    private val onItemsSwap: (Int, Int) -> Unit
+class DragToSortCallback(
+    private val onItemsSwap: (Int, Int) -> Unit,
+    private val onItemDragged: () -> Unit,
+    private val onItemReleased: () -> Unit
 ) : ItemTouchHelper.Callback() {
+
+    override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+        super.onSelectedChanged(viewHolder, actionState)
+        if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) onItemDragged()
+        if (actionState == ItemTouchHelper.ACTION_STATE_IDLE) onItemReleased()
+    }
 
     override fun getMovementFlags(
         recyclerView: RecyclerView,

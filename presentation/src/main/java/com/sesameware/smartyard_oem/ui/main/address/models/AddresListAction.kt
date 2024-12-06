@@ -2,10 +2,10 @@ package com.sesameware.smartyard_oem.ui.main.address.models
 
 import com.sesameware.smartyard_oem.ui.main.address.models.interfaces.VideoCameraModelP
 
-sealed interface AddressAction
+sealed interface HouseAction
 
-data class OnOpenEntranceClick(val entranceId: EntranceId) : AddressAction
-data class OnExpandClick(val position: Int, val isExpanded: Boolean) : AddressAction
-data class OnItemFullyExpanded(val position: Int) : AddressAction
-data class OnCameraClick(val model: VideoCameraModelP) : AddressAction
-data class OnEventLogClick(val title: String, val houseId: Int) : AddressAction
+data class OnOpenEntranceClick(val entranceId: EntranceId) : HouseAction
+data class OnExpandClick(val position: Int, val isExpanded: Boolean) : HouseAction
+data class OnItemFullyExpanded(val position: Int) : HouseAction
+data class OnCameraClick(val model: VideoCameraModelP) : HouseAction
+data class OnEventLogClick(val title: String, val houseId: Int) : HouseAction
