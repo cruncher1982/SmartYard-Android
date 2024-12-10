@@ -97,11 +97,11 @@ class MessagingService : FirebaseMessagingService(), KoinComponent {
                             //for test
                             /*if (msg.callerId == "Support") {
                                 msg.videoToken = ""
-                                msg.videoStream = "https://fl4.lanta.me:8443/95594"
+                                msg.videoStream = "https://rbt-demo.lanta.me:8443/rbt-demo-000006"
                                 msg.videoServer = "flussonic"
                                 msg.videoType = "webrtc"
-                                /*msg.live = ""
-                                msg.image = ""*/
+                                msg.live = "${preferenceStorage.providerBaseUrl}call/live/123456"
+                                msg.image = "${preferenceStorage.providerBaseUrl}call/camshot/123456"
                             }*/
 
                             waitForLinServiceAndRun(msg) {

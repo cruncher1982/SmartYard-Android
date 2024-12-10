@@ -55,6 +55,7 @@ import org.webrtc.DataChannel
 import org.webrtc.DefaultVideoDecoderFactory
 import org.webrtc.DefaultVideoEncoderFactory
 import org.webrtc.EglBase
+import org.webrtc.EglRenderer
 import org.webrtc.IceCandidate
 import org.webrtc.MediaConstraints
 import org.webrtc.MediaStream
@@ -70,21 +71,55 @@ import kotlin.math.min
 class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListener {
     private lateinit var binding: ActivityIncomingCallBinding
 
-    //WebRTC staff
+    // WebRTC staff
     private val rootEglBase: EglBase = EglBase.create()
     private var webRtcFirstFrameRendered = false
-    private var webRtcIsStopped = false
+    private var isWebRTCStopped = true
+    private var peerConnection: PeerConnection? = null
+    private var frameBitmap: Bitmap?  = null
 
-    fun addIceCandidate(iceCandidate: IceCandidate?) {
-        peerConnection?.addIceCandidate(iceCandidate)
+    // Listener to maintain the last frame from WebRTC
+    private var webRTCListener = EglRenderer.FrameListener {bitmap: Bitmap? ->
+        frameBitmap = bitmap?.copy(Bitmap.Config.ARGB_8888, false)
     }
 
     private val peerConnectionFactory by lazy {
         buildPeerConnectionFactory()
     }
 
-    private val peerConnection by lazy {
-        buildPeerConnection(object : PeerConnection.Observer {
+    private fun buildPeerConnectionFactory(): PeerConnectionFactory {
+        return PeerConnectionFactory
+            .builder()
+            .setVideoDecoderFactory(DefaultVideoDecoderFactory(rootEglBase.eglBaseContext))
+            .setVideoEncoderFactory(DefaultVideoEncoderFactory(rootEglBase.eglBaseContext, true, true))
+            .setOptions(PeerConnectionFactory.Options().apply {
+                disableNetworkMonitor = true
+            })
+            .createPeerConnectionFactory()
+    }
+
+    private fun buildPeerConnection(observer: PeerConnection.Observer) = peerConnectionFactory.createPeerConnection(
+        listOf(PeerConnection.IceServer.builder(mPushCallData.stun).createIceServer()),
+        observer
+    )
+
+    /**
+     * Loads and initializes WebRTC. This must be called at least once before creating a PeerConnectionFactory.
+     */
+    private fun initPeerConnectionFactory(context: Application) {
+        val options = PeerConnectionFactory.InitializationOptions.builder(context)
+            .setEnableInternalTracer(true)
+            .setFieldTrials("WebRTC-H264HighProfile/Enabled/")
+            .createInitializationOptions()
+        PeerConnectionFactory.initialize(options)
+    }
+
+    fun addIceCandidate(iceCandidate: IceCandidate?) {
+        peerConnection?.addIceCandidate(iceCandidate)
+    }
+
+    private fun createConnection() {
+        peerConnection = buildPeerConnection(object : PeerConnection.Observer {
             override fun onSignalingChange(p0: PeerConnection.SignalingState?) {
                 Timber.d("debug_webrtc onSignalingChange")
             }
@@ -132,36 +167,8 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
                 Timber.d("debug_webrtc onAddTrack: $p0 \n $p1")
             }
         })
+        peerConnection?.createConnection()
     }
-
-    private fun buildPeerConnectionFactory(): PeerConnectionFactory {
-        return PeerConnectionFactory
-            .builder()
-            .setVideoDecoderFactory(DefaultVideoDecoderFactory(rootEglBase.eglBaseContext))
-            .setVideoEncoderFactory(DefaultVideoEncoderFactory(rootEglBase.eglBaseContext, true, true))
-            .setOptions(PeerConnectionFactory.Options().apply {
-                disableNetworkMonitor = true
-            })
-            .createPeerConnectionFactory()
-    }
-
-    private fun buildPeerConnection(observer: PeerConnection.Observer) = peerConnectionFactory.createPeerConnection(
-        listOf(PeerConnection.IceServer.builder(mPushCallData.stun).createIceServer()),
-        observer
-    )
-
-    /**
-     * Loads and initializes WebRTC. This must be called at least once before creating a PeerConnectionFactory.
-     */
-    private fun initPeerConnectionFactory(context: Application) {
-        val options = PeerConnectionFactory.InitializationOptions.builder(context)
-            .setEnableInternalTracer(true)
-            .setFieldTrials("WebRTC-H264HighProfile/Enabled/")
-            .createInitializationOptions()
-        PeerConnectionFactory.initialize(options)
-    }
-
-    private fun createConnection() = peerConnection?.createConnection()
 
     private fun PeerConnection.createConnection() {
         val constraints = MediaConstraints().apply {
@@ -245,9 +252,76 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
     private var mTryingToOpenDoor: Boolean = false
     override val mViewModel by viewModel<IncomingCallActivityViewModel>()
     private lateinit var mPushCallData: PushCallData
+    private val hasWebRTC: Boolean
+        get() = ::mPushCallData.isInitialized && mPushCallData.videoStream.isNotEmpty()
+    private var hasSnapshot = true
     private var mSensorManager: SensorManager? = null
     private var mProximity: Sensor? = null
-    private val SENSOR_SENSITIVITY = 4
+
+    private fun initWebRTC() {
+        initPeerConnectionFactory(application)
+    }
+
+    private fun startWebRTC() {
+        if (!isWebRTCStopped) {
+            return
+        }
+
+        // Initialize WebRTC View
+        binding.mWebRTCView.run {
+            setEnableHardwareScaler(true)
+            init(rootEglBase.eglBaseContext, object : RendererEvents {
+                override fun onFirstFrameRendered() {
+                    Timber.d("debug_webrtc    onFirstFrameRendered")
+                    webRtcFirstFrameRendered = true
+                    Timber.d("debug_webrtc    make mWebRTCView visible onFirstFrameRendered")
+                    alpha = 1.0f
+                    Timber.d("debug_webrtc    make mPeekImageView invisible onFirstFrameRendered")
+                    binding.mPeekImageView.visibility = View.INVISIBLE
+                }
+
+                override fun onFrameResolutionChanged(videoWidth: Int, videoHeight: Int, rotation: Int) {
+                    Timber.d("debug_webrtc    onFrameResolutionChanged")
+                    val w = binding.mImageViewWrap.width
+                    val h = binding.mImageViewWrap.height
+                    if (w > 0 && h > 0 && videoWidth > 0 && videoHeight > 0) {
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            val scale = min(h.toFloat() / videoHeight.toFloat(), w.toFloat() / videoWidth.toFloat())
+                            binding.mWebRTCView.layoutParams?.let { lp ->
+                                lp.width = (scale * videoWidth).toInt()
+                                lp.height = (scale * videoHeight).toInt()
+                            }
+                        }
+                    }
+                }
+            })
+            Timber.d("debug_webrtc    make mWebRTCView invisible on initWebRTC")
+            alpha = 0.0f
+            visibility = View.VISIBLE
+            bringToFront()
+        }
+        binding.mWebRTCView.addFrameListener(webRTCListener, 1f)
+        createConnection()
+        isWebRTCStopped = false
+    }
+
+    private fun stopWebRTC() {
+        if (!isWebRTCStopped && hasWebRTC) {
+            if (binding.mPeekImageView.isLaidOut) {
+                Timber.d("debug_webrtc    copy last frame")
+                binding.mPeekImageView.setImageBitmap(frameBitmap)
+            }
+            Timber.d("debug_webrtc    make mWebRTCView invisible stopWebRtcConnection")
+            binding.mWebRTCView.alpha = 0.0f
+            peerConnection?.close()
+            peerConnection?.dispose()
+            peerConnection = null
+            isWebRTCStopped = true
+            webRtcFirstFrameRendered = false
+            binding.mWebRTCView.removeFrameListener(webRTCListener)
+            binding.mWebRTCView.release()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -287,16 +361,10 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
             }
 
             binding.mAnswerButton.setOnClickListener { answerCall() }
-            if (mPushCallData.image.isEmpty() && mPushCallData.videoStream.isNotEmpty()) {
-                mViewModel.eyeState.value = true
-                binding.mPeepholeButton.setOnClickListener(null)
-                binding.mPeekImageView.alpha = 0.0f
-            } else {
-                mViewModel.eyeState.value = LinphoneService.instance?.provider?.pushCallData?.eyeState == true
-                binding.mPeepholeButton.setOnClickListener {
-                    mViewModel.eyeState.value = !binding.mPeepholeButton.isChecked
-                    mLinphone.stopRinging()
-                }
+            mViewModel.eyeState.value = LinphoneService.instance?.provider?.pushCallData?.eyeState == true
+            binding.mPeepholeButton.setOnClickListener {
+                mViewModel.eyeState.value = !binding.mPeepholeButton.isChecked
+                mLinphone.stopRinging()
             }
             binding.mHangUpButton.setOnClickListener { hangUp() }
         } else {
@@ -309,47 +377,14 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
             useSpeaker = true
         } else {
             //включение громкой связи, если выставлен флаг в настройках домофона
-            if (fcmData != null) {
-                if (mViewModel.mPreferenceStorage.addressOptions.getOption(fcmData.flatId).isSpeaker == true) {
-                    useSpeaker = true
-                }
+            if (mViewModel.mPreferenceStorage.addressOptions.getOption(fcmData.flatId).isSpeaker == true) {
+                useSpeaker = true
             }
         }
         mViewModel.routeAudioToValue(useSpeaker)
 
-        //WebRTC
-        if (mPushCallData.videoStream.isNotEmpty()) {
-            initPeerConnectionFactory(application)
-            binding.mWebRTCView.run {
-                setEnableHardwareScaler(true)
-                init(rootEglBase.eglBaseContext, object : RendererEvents {
-                    override fun onFirstFrameRendered() {
-                        webRtcFirstFrameRendered = true
-                        if (mLinphone.isConnected() || mPushCallData.image.isEmpty() || mViewModel.eyeState.value == true) {
-                            alpha = 1.0f
-                            binding.mPeekImageView.visibility = View.INVISIBLE
-                        }
-                    }
-
-                    override fun onFrameResolutionChanged(videoWidth: Int, videoHeight: Int, rotation: Int) {
-                        val w = binding.mImageViewWrap.width
-                        val h = binding.mImageViewWrap.height
-                        if (w > 0 && h > 0 && videoWidth > 0 && videoHeight > 0) {
-                            lifecycleScope.launch(Dispatchers.Main) {
-                                val scale = min(h.toFloat() / videoHeight.toFloat(), w.toFloat() / videoWidth.toFloat())
-                                binding.mWebRTCView.layoutParams?.let { lp ->
-                                    lp.width = (scale * videoWidth).toInt()
-                                    lp.height = (scale * videoHeight).toInt()
-                                }
-                            }
-                        }
-                    }
-                })
-                alpha = 0.0f
-                visibility = View.VISIBLE
-                bringToFront()
-            }
-            createConnection()
+        if (hasWebRTC) {
+            initWebRTC()
         }
     }
 
@@ -406,7 +441,7 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
         mViewModel.imageStringData.observe(
             this,
             EventObserver { string ->
-                if (string.isEmpty()) {
+                if (string.isEmpty() || !hasSnapshot) {
                     return@EventObserver
                 }
 
@@ -422,9 +457,12 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
                             target: Target<Bitmap>?,
                             isFirstResource: Boolean
                         ): Boolean {
-                            binding.mPeekImageView.alpha = 0.0f
-                            if (mPushCallData.videoStream.isNotEmpty()) {
-                                binding.mWebRTCView.alpha = 1.0f
+                            Timber.d("debug_webrtc    snapshot failed")
+                            Timber.d("debug_webrtc    make mPeekImageView invisible imageStringData")
+                            binding.mPeekImageView.visibility = View.INVISIBLE
+                            if (hasWebRTC) {
+                                hasSnapshot = false
+                                enablePeepholeVideo(true)
                             }
                             return false
                         }
@@ -436,7 +474,8 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
                             dataSource: DataSource?,
                             isFirstResource: Boolean
                         ): Boolean {
-                            binding.mPeekImageView.alpha = 1.0f
+                            Timber.d("debug_webrtc    make mPeekImageView visible onResourceReady")
+                            binding.mPeekImageView.visibility = View.VISIBLE
                             return false
                         }
 
@@ -510,8 +549,16 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
 
     private fun setConnectedState(connected: Boolean) {
         if (connected) {
-            enablePeepholeVideo(false)
             binding.mPeepholeButton.setOnClickListener(null)
+            enablePeepholeVideo(hasWebRTC && !mLinphone.isVideoCall())
+            if (mLinphone.isVideoCall()) {
+                Timber.d("debug_webrtc    answer the call with video in SIP")
+                binding.mVideoSip.show(true)
+                binding.mVideoSip.bringToFront()
+            } else if (hasWebRTC) {
+                Timber.d("debug_webrtc    answer the call with WebRTC video")
+            }
+            mViewModel.connectedChangeStateUiAudioToSpeaker()
         } else if (mPushCallData.image.isNotEmpty()) {
             binding.mPeepholeButton.setOnClickListener {
                 mViewModel.eyeState.value = !binding.mPeepholeButton.isChecked
@@ -520,21 +567,9 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
         }
 
         switchCallClock(connected)
-        if (connected && mLinphone.isVideoCall()) {
-            binding.mVideoSip.show(true)
-            binding.mVideoSip.bringToFront()
-            stopWebRtcConnection()
-        } else if (webRtcFirstFrameRendered) {
-            binding.mWebRTCView.alpha = 1.0f
-            binding.mPeekImageView.visibility = View.INVISIBLE
-        }
-
         binding.mHangUpButton.setText(if (connected) R.string.reject else R.string.ignore)
         binding.mAnswerButton.setText(if (connected) R.string.connected else R.string.answer)
         binding.mAnswerButton.isSelected = connected
-        if (connected) {
-            mViewModel.connectedChangeStateUiAudioToSpeaker()
-        }
     }
 
     private fun enablePeepholeVideo(isEnabled: Boolean) {
@@ -544,18 +579,20 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
             R.string.call_talk
         }
         binding.mTitle.setText(text)
-        mViewModel.setSlideShowEnabled(isEnabled)
+        mViewModel.setSlideShowEnabled(!hasWebRTC && isEnabled)
         binding.mPeepholeButton.isChecked = isEnabled
-        if (isEnabled) {
-            if (webRtcFirstFrameRendered) {
-                binding.mWebRTCView.alpha = 1.0f
-                binding.mPeekImageView.visibility = View.INVISIBLE
+
+        if (hasWebRTC) {
+            if (isEnabled) {
+                startWebRTC()
             } else {
+                Timber.d("debug_webrtc    make mPeekImageView visible enablePeepholeVideo")
                 binding.mPeekImageView.visibility = View.VISIBLE
+
+                stopWebRTC()
+                Timber.d("debug_webrtc    make mWebRTCView invisible enablePeepholeVideo")
+                binding.mWebRTCView.alpha = 0.0f
             }
-        } else if (!mLinphone.isConnected() && mPushCallData.image.isNotEmpty()) {
-            binding.mWebRTCView.alpha = 0.0f
-            binding.mPeekImageView.visibility = View.VISIBLE
         }
     }
 
@@ -586,11 +623,13 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
     }
 
     private fun observeCallState(it: CCallState) {
+        Timber.d("debug_dmm call observeCallState with state = $it")
         it.run {
             when (state) {
                 CallStateSimple.INCOMING -> {
                 }
                 CallStateSimple.OTHER_CONNECTED -> {
+                    Timber.d("debug_webrtc    observeCallState    CallStateSimple.OTHER_CONNECTED")
                     setConnectedState(true)
                 }
                 CallStateSimple.CONNECTED -> {
@@ -598,6 +637,7 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
                         binding.mAnswerButton.setText(R.string.connecting)
                         mLinphone.sendDtmf()
                     } else {
+                        Timber.d("debug_webrtc    observeCallState    CallStateSimple.CONNECTED")
                         setConnectedState(true)
                     }
                 }
@@ -610,6 +650,7 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
                 CallStateSimple.END -> {
                 }
                 CallStateSimple.IDLE -> {
+                    Timber.d("debug_webrtc    observeCallState    CallStateSimple.IDLE")
                     setConnectedState(false)
                 }
             }
@@ -632,18 +673,7 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
     override fun onDestroy() {
         super.onDestroy()
 
-        stopWebRtcConnection()
-    }
-
-    private fun stopWebRtcConnection() {
-        if (!webRtcIsStopped && ::mPushCallData.isInitialized && mPushCallData.videoStream.isNotEmpty()) {
-            binding.mWebRTCView.alpha = 0.0f
-            peerConnection?.close()
-            peerConnection?.dispose()
-            binding.mWebRTCView.release()
-            rootEglBase.release()
-            webRtcIsStopped = true
-        }
+        stopWebRTC()
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
@@ -673,5 +703,6 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
     companion object {
         const val NOTIFICATION_ID = "NOTIFICATION_ID"
         const val PUSH_DATA = "PUSH_DATA"
+        const val SENSOR_SENSITIVITY = 4
     }
 }
