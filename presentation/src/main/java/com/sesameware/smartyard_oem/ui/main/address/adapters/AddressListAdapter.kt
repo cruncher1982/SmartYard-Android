@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import androidx.core.view.doOnPreDraw
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -89,7 +90,7 @@ class AddressListAdapter(
     override fun onViewAttachedToWindow(holder: RecyclerView.ViewHolder) {
         if (isViewDragged) {
             if (holder is IssueViewHolder) return
-            (holder as HouseViewHolder).onViewDragged(false)
+            (holder as HouseViewHolder).onAnyItemDragged(false)
         }
     }
 
@@ -138,18 +139,27 @@ class HouseViewHolder private constructor(
 
     private var stashedIsExpanded = false
 
-    fun onViewDragged(isVisible: Boolean) {
-        binding.apply {
-            stashedIsExpanded = expandableLayout.isExpanded
-            expandableLayout.setExpanded(false, isVisible)
-            expandHouse.isSelected = false
+    fun onThisItemDragged() {
+        binding.root.apply {
+            val elevationPx = context.resources.displayMetrics.density * DRAGGED_ELEVATION
+            translationZ = elevationPx
+            scaleX = DRAGGED_SCALE_X
+            scaleY = DRAGGED_SCALE_Y
         }
     }
 
-    fun onVisibleViewReleased() {
+    fun onThisItemReleased() {
+        binding.root.doOnPreDraw {
+            it.translationZ = 0f
+            it.scaleX = 1.0f
+            it.scaleY = 1.0f
+        }
+    }
+
+    fun onAnyItemDragged(animate: Boolean) {
         binding.apply {
-            expandableLayout.isExpanded = stashedIsExpanded
-            expandHouse.isSelected = stashedIsExpanded
+            expandableLayout.setExpanded(false, animate)
+            expandHouse.isSelected = false
         }
     }
 
@@ -257,6 +267,10 @@ class HouseViewHolder private constructor(
     }
 
     companion object {
+        private const val DRAGGED_ELEVATION = 1.5f
+        private const val DRAGGED_SCALE_X = 1.035f
+        private const val DRAGGED_SCALE_Y = 1.08f
+
         fun getInstance(parent: ViewGroup) : HouseViewHolder {
             val binding = ItemHouseBinding.inflate(
                 LayoutInflater.from(parent.context), parent, false)

@@ -71,6 +71,8 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
         }
     }
 
+    private var lastIsHidden = false
+
     private val showHideFabListener = object : OnScrollListener() {
         override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
             super.onScrolled(recyclerView, dx, dy)
@@ -120,28 +122,22 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
         }
     }
 
-    private fun onItemDrag() {
-        val adapter = requireInitialized(adapter)
-        adapter.onViewDragged()
+    private fun onItemDrag(viewHolder: RecyclerView.ViewHolder?) {
+        (viewHolder as? HouseViewHolder)?.onThisItemDragged()
+        requireInitialized(adapter).onViewDragged()
         val manager = requireInitialized(manager)
         val firstVisible = manager.findFirstVisibleItemPosition()
         val lastVisible = manager.findLastVisibleItemPosition()
         (firstVisible..lastVisible).forEach {
             (binding.addressList.findViewHolderForLayoutPosition(it) as? HouseViewHolder)
-                ?.onViewDragged(true)
+                ?.onAnyItemDragged(true)
         }
+        mViewModel.onItemDrag()
     }
 
-    private fun onItemRelease() {
-        val adapter = requireInitialized(adapter)
-        adapter.onViewReleased()
-        val manager = requireInitialized(manager)
-        val firstVisible = manager.findFirstVisibleItemPosition()
-        val lastVisible = manager.findLastVisibleItemPosition()
-        (firstVisible..lastVisible).forEach {
-            (binding.addressList.findViewHolderForLayoutPosition(it) as? HouseViewHolder)
-                ?.onVisibleViewReleased()
-        }
+    private fun onItemRelease(viewHolder: RecyclerView.ViewHolder?) {
+        (viewHolder as? HouseViewHolder)?.onThisItemReleased()
+        requireInitialized(adapter).onViewReleased()
     }
 
     private fun onAddressAction(action: HouseAction) {
@@ -323,8 +319,16 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
         }
     }
 
+    override fun onHiddenChanged(hidden: Boolean) {
+        if (!lastIsHidden && isHidden) { // To avoid double save
+            mViewModel.persistUi()
+        }
+        lastIsHidden = isHidden
+    }
+
     override fun onStop() {
         super.onStop()
+        mViewModel.persistUi()
         context?.let {
             LocalBroadcastManager.getInstance(it).unregisterReceiver(receiver)
         }

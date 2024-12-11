@@ -52,12 +52,6 @@ class AddressViewModel(
     var houseIdFlats: HashMap<Int, List<Flat>> = hashMapOf()
         private set
 
-    private val expandedHouseIds: MutableSet<Int> =
-        mPreferenceStorage.expandedHouseIds?.toMutableSet() ?: mutableSetOf()
-
-    private val houseIdPositions: MutableMap<Int, Int> =
-        mPreferenceStorage.houseIdPositions?.toMutableMap() ?: mutableMapOf()
-
     fun openDoor(id: EntranceId) {
         viewModelScope.withProgress {
             mAuthInteractor.openDoor(id.domophoneId, id.doorId)
@@ -73,16 +67,12 @@ class AddressViewModel(
         val newState = list[position].copy(isExpanded = isExpanded)
         list[position] = newState
         houseUiState.value = list
-        if (isExpanded) expandedHouseIds.add(newState.houseId)
-        else expandedHouseIds.remove(newState.houseId)
     }
 
     fun setHouseItemSavedPosition(oldPosition: Int, newPosition: Int) {
         val list = houseUiState.value?.toMutableList() ?: return
         // Ignore Issue items, and House items moved over Issue items
         if (oldPosition >= list.size || newPosition >= list.size ) return
-        houseIdPositions[list[oldPosition].houseId] = newPosition
-        houseIdPositions[list[newPosition].houseId] = oldPosition
         val state = list.removeAt(oldPosition)
         list.add(newPosition, state)
         houseUiState.value = list
@@ -94,27 +84,12 @@ class AddressViewModel(
         houseUiState.value = collapsedList
     }
 
-    fun onItemRelease() {
-        val list = houseUiState.value?.toMutableList() ?: return
-        val expandedList = list.map { it.copy(isExpanded = expandedHouseIds.contains(it.houseId)) }
-        houseUiState.value = expandedList
-    }
-
-    private fun saveHousesPositions(list: List<HouseUiModel>) {
-        val pairs = list.take(MAX_SAVED_POSITIONS)
-            .mapIndexed { i, house -> house.houseId to i }
-            .toTypedArray()
-        houseIdPositions.clear()
-        houseIdPositions.putAll(mapOf(*pairs))
-    }
-
     fun getDataList(forceRefresh: Boolean = false) {
         viewModelScope.withProgress(progress = _progress) {
             populateHouseIdFlats(forceRefresh)
             launch(Dispatchers.IO) {
                 val houses = getHouses(forceRefresh)
                 houseUiState.postValue(houses)
-                saveHousesPositions(houses)
             }
             launch(Dispatchers.IO) {
                 issueUiState.postValue(getIssues(forceRefresh))
@@ -168,6 +143,17 @@ class AddressViewModel(
 
         if (response.data.isEmpty()) return emptyList()
 
+        val expandedHouseIds: Set<Int>
+        val houseIdPositions: Map<Int, Int>
+        val state = houseUiState.value
+        if (state == null) {
+            expandedHouseIds = mPreferenceStorage.expandedHouseIds ?: emptySet()
+            houseIdPositions = mPreferenceStorage.houseIdPositions ?: emptyMap()
+        } else {
+            expandedHouseIds = state.toExpandedHouseIds()
+            houseIdPositions = state.toHouseIdPositions()
+        }
+
         val houseList = response.data.map { addressDto ->
             val entranceList = addressDto.doors.map { entranceDto ->
                 addToWidgetDatabase(entranceDto, addressDto)
@@ -212,7 +198,6 @@ class AddressViewModel(
         if (firstLaunch && expandedHouseIds.isEmpty()) {
             val newState = houseList[0].copy(isExpanded = true)
             houseList[0] = newState
-            expandedHouseIds.add(newState.houseId)
             mPreferenceStorage.justRegistered = false
         }
 
@@ -255,10 +240,19 @@ class AddressViewModel(
             )
     }
 
-    override fun onCleared() {
-        if (mPreferenceStorage.phone == null) return
-        mPreferenceStorage.expandedHouseIds = expandedHouseIds
-        mPreferenceStorage.houseIdPositions = houseIdPositions
+    private fun List<HouseUiModel>.toExpandedHouseIds(): Set<Int> =
+        this.filter { it.isExpanded }
+            .map { it.houseId }
+            .toSet()
+
+    private fun List<HouseUiModel>.toHouseIdPositions(): Map<Int, Int> =
+        this.take(MAX_SAVED_POSITIONS)
+            .mapIndexed { i, h -> h.houseId to i }
+            .toMap()
+
+    fun persistUi() {
+        mPreferenceStorage.expandedHouseIds = houseUiState.value?.toExpandedHouseIds()
+        mPreferenceStorage.houseIdPositions = houseUiState.value?.toHouseIdPositions()
     }
 
     companion object {

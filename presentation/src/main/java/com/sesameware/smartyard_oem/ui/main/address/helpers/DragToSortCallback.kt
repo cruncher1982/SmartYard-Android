@@ -7,14 +7,19 @@ import androidx.recyclerview.widget.RecyclerView
 
 class DragToSortCallback(
     private val onItemsSwap: (Int, Int) -> Unit,
-    private val onItemDragged: () -> Unit,
-    private val onItemReleased: () -> Unit
+    private val onItemDragged: (RecyclerView.ViewHolder?) -> Unit,
+    private val onItemReleased: (RecyclerView.ViewHolder?) -> Unit
 ) : ItemTouchHelper.Callback() {
+
+    private var lastDraggedItem: RecyclerView.ViewHolder? = null
 
     override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
         super.onSelectedChanged(viewHolder, actionState)
-        if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) onItemDragged()
-        if (actionState == ItemTouchHelper.ACTION_STATE_IDLE) onItemReleased()
+        if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+            onItemDragged(viewHolder)
+            lastDraggedItem = viewHolder
+        }
+        if (actionState == ItemTouchHelper.ACTION_STATE_IDLE) onItemReleased(lastDraggedItem)
     }
 
     override fun getMovementFlags(
