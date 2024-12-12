@@ -151,7 +151,7 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
                 mViewModel.setHouseItemExpanded(action.position, action.isExpanded)
             }
             is OnOpenEntranceClick -> mViewModel.openDoor(action.entranceId)
-            is OnItemFullyExpanded -> {}//scrollUntilFullItemVisible(action.position)
+            is OnItemFullyExpanded -> scrollUntilFullItemVisible(action.position)
         }
     }
 

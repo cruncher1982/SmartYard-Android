@@ -188,7 +188,7 @@ class HouseViewHolder private constructor(
                 callback(OnExpandClick(bindingAdapterPosition, expandHouse.isSelected))
                 expandableLayout.toggle()
             }
-            houseAddress.setOnClickListener(onHeaderClickListener)
+//            houseAddress.setOnClickListener(onHeaderClickListener)
             expandHouse.setOnClickListener(onHeaderClickListener)
             expandHouse.isSelected = state.isExpanded
 
