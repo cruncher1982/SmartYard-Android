@@ -91,11 +91,6 @@ android {
             dimension "site"
             applicationId "com.sesameware.smartyard_oem"
         }
-
-        teledomTest {
-            dimension "site"
-            applicationId "com.sesameware.smartyard_oem"
-        }
     }
 
     buildFeatures {

@@ -65,10 +65,6 @@ android {
             dimension "site"
         }
 
-        teledomTest {
-            dimension "site"
-        }
-
         client {
             dimension "site"
         }
