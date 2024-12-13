@@ -62,7 +62,7 @@ import com.sesameware.data.prefs.PreferenceStorage
 import com.sesameware.domain.model.PushCallData
 import com.sesameware.domain.utils.listenerEmpty
 import com.sesameware.domain.utils.listenerGeneric
-import com.sesameware.smartyard_oem.Crashlytics
+import com.sesameware.data.Crashlytics
 import com.sesameware.smartyard_oem.LinphoneService
 import com.sesameware.smartyard_oem.MessagingService
 import com.sesameware.smartyard_oem.R

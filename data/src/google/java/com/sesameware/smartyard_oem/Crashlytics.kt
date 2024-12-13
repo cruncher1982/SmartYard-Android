@@ -1,4 +1,4 @@
-package com.sesameware.smartyard_oem
+package com.sesameware.data
 
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 

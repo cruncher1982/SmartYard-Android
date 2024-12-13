@@ -121,7 +121,11 @@ object DataModule {
 
     private fun loggingInterceptor(): Interceptor {
         val logger =
-            HttpLoggingInterceptor.Logger { message -> Timber.tag("OkHttp").d(message) }
+            HttpLoggingInterceptor.Logger { message ->
+                Timber.tag("OkHttp").d(message)
+                val crashlytics = Crashlytics.getInstance()
+                crashlytics.log("OkHttp $message")
+            }
         return HttpLoggingInterceptor(logger).apply {
             level = HttpLoggingInterceptor.Level.BODY
         }

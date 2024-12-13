@@ -1,4 +1,4 @@
-package com.sesameware.smartyard_oem
+package com.sesameware.data
 
 import ru.ok.tracer.crash.report.TracerCrashReport
 
@@ -17,5 +17,9 @@ object Crashlytics {
 
     fun recordException(e: Throwable) {
         TracerCrashReport.report(e)
+    }
+
+    fun log(message: String) {
+        TracerCrashReport.log(message)
     }
 }

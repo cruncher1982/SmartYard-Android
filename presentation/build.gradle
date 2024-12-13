@@ -49,8 +49,8 @@ android {
         applicationId "com.sesameware.smartyard_oem"
         minSdk rootProject.minSdk
         targetSdk rootProject.targetSdk
-        versionCode 66
-        versionName '1.0.66'
+        versionCode 67
+        versionName '1.0.67'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations += ["ru", "en", "kk", "uz", "hy"]
         vectorDrawables.useSupportLibrary = true

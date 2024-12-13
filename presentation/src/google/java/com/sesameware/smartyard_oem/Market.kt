@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.messaging.FirebaseMessaging
+import com.sesameware.data.Crashlytics
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.format.DateTimeFormatter
 import timber.log.Timber
