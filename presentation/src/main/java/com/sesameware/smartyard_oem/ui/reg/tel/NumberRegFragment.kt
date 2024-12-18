@@ -34,6 +34,9 @@ class NumberRegFragment : Fragment() {
     private var pinSlotSizes = mutableListOf<Int>()
     private var pinCount = 0
 
+    // To avoid double request
+    private var smsRequested = false
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -68,6 +71,7 @@ class NumberRegFragment : Fragment() {
                 } else {
                     toggleError(true, error.status.messageId)
                 }*/
+                smsRequested = false
                 toggleError(true, error.status.messageId)
             }
         )
@@ -176,6 +180,7 @@ class NumberRegFragment : Fragment() {
         toggleError(false)
         val numbers = binding.etHiddenPhoneNumber.text
         if (numbers.length == pinCount) {
+            smsRequested = true
             mViewModel.requestSmsCode(mPhonePrefix + numbers, this)
         }
     }
