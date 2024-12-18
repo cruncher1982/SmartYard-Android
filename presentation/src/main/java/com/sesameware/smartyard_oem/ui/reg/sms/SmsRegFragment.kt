@@ -12,7 +12,6 @@ import androidx.core.view.isVisible
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
-import org.koin.androidx.viewmodel.ext.android.viewModel
 import com.sesameware.domain.model.ErrorStatus
 import com.sesameware.domain.model.response.AuthMethod
 import com.sesameware.smartyard_oem.EventObserver
@@ -20,6 +19,7 @@ import com.sesameware.smartyard_oem.R
 import com.sesameware.smartyard_oem.databinding.FragmentSmsRegBinding
 import com.sesameware.smartyard_oem.eventHandler
 import com.sesameware.smartyard_oem.getColorCompat
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 /**
  * @author Nail Shakurov
@@ -114,9 +114,7 @@ class SmsRegFragment : Fragment() {
             toggleError(false)
         }
         binding.pin.setOnClickListener {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                eventHandler(binding.pin, requireContext())
-            }
+            eventHandler(binding.pin, requireContext())
         }
         binding.pin.setOnPinEnteredListener {
             mViewModel.confirmCode(phoneNumber, it.toString(), this)
