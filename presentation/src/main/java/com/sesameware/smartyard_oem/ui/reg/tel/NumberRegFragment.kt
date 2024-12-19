@@ -179,7 +179,7 @@ class NumberRegFragment : Fragment() {
     private fun checkToSmsReg(s: Editable?) {
         toggleError(false)
         val numbers = binding.etHiddenPhoneNumber.text
-        if (numbers.length == pinCount) {
+        if (numbers.length == pinCount && !smsRequested) {
             smsRequested = true
             mViewModel.requestSmsCode(mPhonePrefix + numbers, this)
         }
