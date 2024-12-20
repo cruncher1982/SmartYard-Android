@@ -133,7 +133,7 @@ class AddressViewModel(
         val response = addressInteractor.getAddressList()
         if (response?.data == null) {
             if (!mPreferenceStorage.whereIsContractWarningSeen) {
-                _navigateToAuth.value = (Event(Unit))
+                _navigateToAuth.postValue(Event(Unit))
             }
             return listOf()
         }
