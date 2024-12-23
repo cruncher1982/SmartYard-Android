@@ -63,7 +63,6 @@ open class BaseRepository(open val moshi: Moshi) {
         fun getStatus(throwable: Throwable): ErrorStatus {
             return when (throwable) {
                 is UnknownHostException -> ErrorStatus.ERROR_CONNECTION
-                is IOException -> ErrorStatus.ERROR_CONNECTION
                 is SocketTimeoutException -> ErrorStatus.TIMEOUT
                 is HttpException -> {
                     when (throwable.code()) {
@@ -79,6 +78,7 @@ open class BaseRepository(open val moshi: Moshi) {
                         else -> ErrorStatus.HTTP_OTHER
                     }
                 }
+                is IOException -> ErrorStatus.ERROR_CONNECTION
                 else -> ErrorStatus.OTHER
             }
         }
