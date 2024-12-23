@@ -33,6 +33,13 @@ abstract class CommonActivity : AppCompatActivity() {
                             mViewModel.logout(this@CommonActivity)
                         }
                     }
+                    ErrorStatus.ATTENTION -> {
+                        showStandardAlert(
+                            this,
+                            getString(error.status.messageId),
+                            error.errorData?.message ?: this.getString(error.status.messageId)
+                        )
+                    }
                     else -> {
                         showStandardAlert(
                             this,
