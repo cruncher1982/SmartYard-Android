@@ -9,7 +9,7 @@
     <string name="common_error">Ошибка.</string>
     <string name="common_not_found">Не найдено.</string>
     <string name="no_content">Нет контента.</string>
-    <string name="title_0">Внимание!</string>
+    <string name="common_attention">Внимание!</string>
 
     <string name="type_internet">Интернет</string>
     <string name="type_iptv">Телевидение</string>

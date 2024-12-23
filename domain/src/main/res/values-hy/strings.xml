@@ -8,7 +8,7 @@
     <string name="common_error">Սխալ.</string>
     <string name="common_not_found">Չի գտնվել.</string>
     <string name="no_content">Բովանդակություն չկա։</string>
-    <string name="title_0">Ուշադրություն.</string>
+    <string name="common_attention">Ուշադրություն.</string>
 
     <string name="type_internet">Համացանց</string>
     <string name="type_iptv">Հեռուստացույց</string>

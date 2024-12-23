@@ -1,23 +1,14 @@
 package com.sesameware.data.repository
 
+import com.sesameware.domain.model.CommonError
+import com.sesameware.domain.model.CommonErrorThrowable
+import com.sesameware.domain.model.ErrorStatus
+import com.sesameware.domain.model.response.ApiResultNull
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import retrofit2.Response
-import com.sesameware.domain.model.CommonError
-import com.sesameware.domain.model.CommonErrorThrowable
-import com.sesameware.domain.model.ErrorStatus
-import com.sesameware.domain.model.ErrorStatus.AUTHORIZATION_ON_ANOTHER
-import com.sesameware.domain.model.ErrorStatus.BAD_RESPONSE
-import com.sesameware.domain.model.ErrorStatus.HTTP_OTHER
-import com.sesameware.domain.model.ErrorStatus.NOT_FOUND
-import com.sesameware.domain.model.ErrorStatus.ERROR_CONNECTION
-import com.sesameware.domain.model.ErrorStatus.OTHER
-import com.sesameware.domain.model.ErrorStatus.TIMEOUT
-import com.sesameware.domain.model.ErrorStatus.TOO_MANY_REQUESTS
-import com.sesameware.domain.model.ErrorStatus.UNAUTHORIZED
-import com.sesameware.domain.model.response.ApiResultNull
 import timber.log.Timber
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -71,23 +62,24 @@ open class BaseRepository(open val moshi: Moshi) {
     companion object {
         fun getStatus(throwable: Throwable): ErrorStatus {
             return when (throwable) {
-                is UnknownHostException -> ERROR_CONNECTION
-                is IOException -> ERROR_CONNECTION
-                is SocketTimeoutException -> TIMEOUT
+                is UnknownHostException -> ErrorStatus.ERROR_CONNECTION
+                is IOException -> ErrorStatus.ERROR_CONNECTION
+                is SocketTimeoutException -> ErrorStatus.TIMEOUT
                 is HttpException -> {
                     when (throwable.code()) {
-                        401 -> AUTHORIZATION_ON_ANOTHER
-                        406 -> UNAUTHORIZED
-                        410 -> UNAUTHORIZED
-                        424 -> UNAUTHORIZED
-                        400 -> BAD_RESPONSE
-                        422 -> BAD_RESPONSE
-                        404 -> NOT_FOUND
-                        429 -> TOO_MANY_REQUESTS
-                        else -> HTTP_OTHER
+                        401 -> ErrorStatus.AUTHORIZATION_ON_ANOTHER
+                        406 -> ErrorStatus.UNAUTHORIZED
+                        410 -> ErrorStatus.UNAUTHORIZED
+                        424 -> ErrorStatus.UNAUTHORIZED
+                        425 -> ErrorStatus.ATTENTION
+                        400 -> ErrorStatus.BAD_RESPONSE
+                        422 -> ErrorStatus.BAD_RESPONSE
+                        404 -> ErrorStatus.NOT_FOUND
+                        429 -> ErrorStatus.TOO_MANY_REQUESTS
+                        else -> ErrorStatus.HTTP_OTHER
                     }
                 }
-                else -> OTHER
+                else -> ErrorStatus.OTHER
             }
         }
     }

@@ -9,7 +9,7 @@
     <string name="common_error">Xatolik.</string>
     <string name="common_not_found">Topilmadi.</string>
     <string name="no_content">Mazmun yo‘q.</string>
-    <string name="title_0">E‘tibor!</string>
+    <string name="common_attention">E‘tibor!</string>
 
     <string name="type_internet">Internet</string>
     <string name="type_iptv">Televideniya</string>

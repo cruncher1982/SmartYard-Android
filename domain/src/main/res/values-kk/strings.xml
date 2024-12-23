@@ -9,7 +9,7 @@
     <string name="common_error">Қате.</string>
     <string name="common_not_found">Табылған жоқ.</string>
     <string name="no_content">Мазмұны жоқ.</string>
-    <string name="title_0">Назар аударыңыз!</string>
+    <string name="common_attention">Назар аударыңыз!</string>
 
     <string name="type_internet">Интернет</string>
     <string name="type_iptv">Теледидар</string>

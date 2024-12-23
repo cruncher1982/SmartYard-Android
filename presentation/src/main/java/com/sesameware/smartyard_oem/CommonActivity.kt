@@ -26,7 +26,7 @@ abstract class CommonActivity : AppCompatActivity() {
                     ErrorStatus.AUTHORIZATION_ON_ANOTHER -> {
                         showStandardAlert(
                             this,
-                            getString(R.string.title_0),
+                            getString(R.string.common_attention),
                             getString(R.string.common_do_authorization_on_another),
                             false
                         ) {

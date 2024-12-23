@@ -20,6 +20,7 @@ enum class ErrorStatus(@StringRes val messageId: Int) {
     TIMEOUT(R.string.common_timeout),
     OTHER(R.string.common_error),
     UNAUTHORIZED(R.string.common_unauthorized),
+    ATTENTION(R.string.common_attention),
     AUTHORIZATION_ON_ANOTHER(R.string.common_do_authorization_on_another),
     NOT_FOUND(R.string.common_not_found),
     BAD_RESPONSE(R.string.common_error),
