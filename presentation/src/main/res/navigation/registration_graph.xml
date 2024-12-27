@@ -26,7 +26,8 @@
     <fragment
         android:id="@+id/smsRegFragment"
         android:name="com.sesameware.smartyard_oem.ui.reg.sms.SmsRegFragment"
-        android:label="SmsRegFragment">
+        android:label="SmsRegFragment"
+        tools:layout="@layout/fragment_sms_reg">
         <action
             android:id="@+id/action_smsRegFragment_to_appealFragment"
             app:destination="@id/appealFragment" />
@@ -39,7 +40,8 @@
     <activity
         android:id="@+id/mainActivity"
         android:name="com.sesameware.smartyard_oem.ui.main.MainActivity"
-        android:label="MainActivity">
+        android:label="MainActivity"
+        tools:layout="@layout/activity_main">
         <argument
             android:name="messageType"
             android:defaultValue="NO_DEFINE"

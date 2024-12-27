@@ -7,7 +7,8 @@
     app:startDestination="@id/addressFragment">
     <fragment
         android:id="@+id/addressFragment"
-        android:name="com.sesameware.smartyard_oem.ui.main.address.AddressFragment" >
+        android:name="com.sesameware.smartyard_oem.ui.main.address.AddressFragment"
+        tools:layout="@layout/fragment_address" >
         <action
             android:id="@+id/action_addressFragment_to_authFragment"
             app:destination="@id/authFragment"
@@ -35,7 +36,8 @@
     <fragment
         android:id="@+id/inputAddressFragment"
         android:name="com.sesameware.smartyard_oem.ui.main.address.inputAdress.InputAddressFragment"
-        android:label="InputAddressFragment" >
+        android:label="InputAddressFragment"
+        tools:layout="@layout/fragment_input_address" >
         <action
             android:id="@+id/action_inputAddressFragment_to_availableServicesFragment"
             app:destination="@id/availableServicesFragment" />
@@ -49,7 +51,8 @@
     <fragment
         android:id="@+id/availableServicesFragment"
         android:name="com.sesameware.smartyard_oem.ui.main.address.availableServices.AvailableServicesFragment"
-        android:label="AvailableServicesFragment" >
+        android:label="AvailableServicesFragment"
+        tools:layout="@layout/fragment_available_services" >
         <action
             android:id="@+id/action_availableServicesFragment_to_addressVerificationFragment"
             app:destination="@id/addressVerificationFragment" />
@@ -63,7 +66,8 @@
     <fragment
         android:id="@+id/addressVerificationFragment"
         android:name="com.sesameware.smartyard_oem.ui.main.address.addressVerification.AddressVerificationFragment"
-        android:label="AddressVerificationFragment" >
+        android:label="AddressVerificationFragment"
+        tools:layout="@layout/fragment_address_verification" >
         <argument
             android:name="address"
             app:argType="string" />
@@ -80,7 +84,8 @@
     <fragment
         android:id="@+id/authFragment"
         android:name="com.sesameware.smartyard_oem.ui.main.address.auth.AuthFragment"
-        android:label="AuthFragment" >
+        android:label="AuthFragment"
+        tools:layout="@layout/fragment_auth" >
         <action
             android:id="@+id/action_authFragment_to_inputAddressFragment"
             app:destination="@id/inputAddressFragment" />
@@ -91,7 +96,8 @@
     <fragment
         android:id="@+id/CCTVMapFragment"
         android:name="com.sesameware.smartyard_oem.ui.main.address.cctv_video.CCTVMapFragment"
-        android:label="CCTVMapFragment" >
+        android:label="CCTVMapFragment"
+        tools:layout="@layout/fragment_cctv_map" >
         <action
             android:id="@+id/action_CCTVMapFragment_to_CCTVDetailFragment"
             app:destination="@id/CCTVDetailFragment" />
@@ -99,7 +105,8 @@
     <fragment
         android:id="@+id/CCTVDetailFragment"
         android:name="com.sesameware.smartyard_oem.ui.main.address.cctv_video.CCTVDetailFragment"
-        android:label="CCTVDetailFragment" >
+        android:label="CCTVDetailFragment"
+        tools:layout="@layout/fragment_cctv_detail" >
         <action
             android:id="@+id/action_CCTVDetailFragment_to_CCTVArchivePlayerFragment"
             app:destination="@id/CCTVArchivePlayerFragment" />
@@ -122,7 +129,8 @@
     <fragment
         android:id="@+id/codeSmsRestoreFragment"
         android:name="com.sesameware.smartyard_oem.ui.main.address.auth.restoreAccess.codeSmsRestore.CodeSmsRestoreFragment"
-        android:label="CodeSmsRestoreFragment" >
+        android:label="CodeSmsRestoreFragment"
+        tools:layout="@layout/fragment_code_sms_restore" >
         <action
             android:id="@+id/action_codeSmsRestoreFragment_to_authFragment"
             app:destination="@id/authFragment" />
@@ -139,7 +147,8 @@
     <fragment
         android:id="@+id/qrCodeFragment"
         android:name="com.sesameware.smartyard_oem.ui.main.address.qrCode.QrCodeFragment"
-        android:label="QrCodeFragment" />
+        android:label="QrCodeFragment"
+        tools:layout="@layout/fragment_qr_code" />
     <navigation
         android:id="@+id/navigation2"
         app:startDestination="@id/registrationActivity2" >
@@ -157,7 +166,8 @@
     <fragment
         android:id="@+id/workSoonCourierFragment"
         android:name="com.sesameware.smartyard_oem.ui.main.address.workSoon.courier.WorkSoonCourierFragment"
-        android:label="WorkSoonCourierFragment" >
+        android:label="WorkSoonCourierFragment"
+        tools:layout="@layout/fragment_work_soon_courier" >
         <argument
             android:name="issueModel"
             app:argType="com.sesameware.smartyard_oem.ui.main.address.models.IssueModel" />
@@ -165,7 +175,8 @@
     <fragment
         android:id="@+id/workSoonOfficeFragment"
         android:name="com.sesameware.smartyard_oem.ui.main.address.workSoon.office.WorkSoonOfficeFragment"
-        android:label="WorkSoonOfficeFragment" >
+        android:label="WorkSoonOfficeFragment"
+        tools:layout="@layout/fragment_work_soon_office" >
         <argument
             android:name="issueModel"
             app:argType="com.sesameware.smartyard_oem.ui.main.address.models.IssueModel" />
@@ -212,7 +223,6 @@
             android:id="@+id/action_CCTVTreeFragment_to_CCTVDetailFragment"
             app:destination="@id/CCTVDetailFragment" />
     </fragment>
-
 
     <fragment
         android:id="@+id/CCTVArchivePlayerFragment"
