@@ -1,6 +1,8 @@
 package com.sesameware.smartyard_oem.ui.reg.sms
 
+import android.content.ContentResolver
 import android.os.CountDownTimer
+import android.provider.Settings.Secure
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.MutableLiveData
@@ -47,12 +49,12 @@ class SmsRegViewModel(
         startResendTimer()
     }
 
-    fun confirmCode(phone: String, code: String, fragment: Fragment) {
+    fun confirmCode(deviceToken: String, phone: String, code: String, fragment: Fragment) {
         viewModelScope.withProgress({
             confirmError.value = Event(it)
             false
         }) {
-            val res = mAuthInteractor.confirmCode(phone, code)
+            val res = mAuthInteractor.confirmCode(phone, code, deviceToken)
             mPreferenceStorage.authToken = res.data.accessToken
 
             //получение настроек
@@ -75,12 +77,12 @@ class SmsRegViewModel(
         }
     }
 
-    fun resendCode(phone: String) {
+    fun resendCode(phone: String, deviceToken: String) {
         viewModelScope.withProgress({
             sendPhoneError.value = Event(it)
             true
         }) {
-            mAuthInteractor.requestCode(phone)
+            mAuthInteractor.requestCode(phone, deviceToken)
             startResendTimer()
         }
     }

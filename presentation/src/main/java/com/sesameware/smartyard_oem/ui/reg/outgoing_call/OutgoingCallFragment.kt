@@ -1,8 +1,10 @@
 package com.sesameware.smartyard_oem.ui.reg.outgoing_call
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings.Secure
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -46,6 +48,7 @@ class OutgoingCallFragment : Fragment() {
         return binding.root
     }
 
+    @SuppressLint("HardwareIds")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -75,7 +78,8 @@ class OutgoingCallFragment : Fragment() {
             }
         }
 
-        jobCheckPhone = mViewModel.startRepeatingCheckPhone(phoneNumber, requireContext())
+        val androidId = Secure.getString(requireContext().contentResolver, Secure.ANDROID_ID)
+        jobCheckPhone = mViewModel.startRepeatingCheckPhone(androidId, phoneNumber, requireContext())
 
         mViewModel.phoneConfirmed.observe(viewLifecycleOwner) {
             if (it.first) {

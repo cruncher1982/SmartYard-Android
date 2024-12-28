@@ -36,33 +36,36 @@ class AuthRepositoryImpl(
     }
 
     override suspend fun requestCode(
-        userPhone: String
+        userPhone: String,
+        deviceToken: String
     ): RequestCodeResponse {
         return safeApiCall {
             teledomApi.requestCode(
                 DataModule.BASE_URL + "user/requestCode",
-                RequestCodeRequest(userPhone)).getResponseBody()
+                RequestCodeRequest(userPhone, deviceToken)).getResponseBody()
         }
     }
 
     override suspend fun confirmCode(
         userPhone: String,
-        smsCode: String
+        smsCode: String,
+        deviceToken: String
     ): ConfirmCodeResponse {
         return safeApiCall {
             teledomApi.confirmCode(
                 DataModule.BASE_URL + "user/confirmCode",
-                ConfirmCodeRequest(userPhone, smsCode))
+                ConfirmCodeRequest(userPhone, smsCode, deviceToken))
         }
     }
 
     override suspend fun checkPhone(
-        userPhone: String
+        userPhone: String,
+        deviceToken: String
     ): ConfirmCodeResponse {
         return safeApiCall {
             teledomApi.checkPhone(
                 DataModule.BASE_URL + "user/checkPhone",
-                RequestCodeRequest(userPhone))
+                RequestCodeRequest(userPhone, deviceToken))
         }
     }
 

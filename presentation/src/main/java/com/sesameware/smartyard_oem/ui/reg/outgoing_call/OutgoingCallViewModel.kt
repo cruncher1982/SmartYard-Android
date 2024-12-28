@@ -22,12 +22,12 @@ class OutgoingCallViewModel(
 ) : GenericViewModel() {
     val phoneConfirmed = MutableLiveData(Pair(false, Name("", "")))
 
-    fun startRepeatingCheckPhone(userPhone: String, context: Context): Job {
+    fun startRepeatingCheckPhone(deviceToken: String, userPhone: String, context: Context): Job {
         return CoroutineScope(Dispatchers.IO).launch {
             var isDone = false
             while (isActive && !isDone) {
                 try {
-                    val res = mAuthInteractor.checkPhone(userPhone)
+                    val res = mAuthInteractor.checkPhone(userPhone, deviceToken)
                     isDone = true
                     mPreferenceStorage.authToken = res.data.accessToken
                     val name: Name = if (res.data.names is Boolean)

@@ -1,8 +1,11 @@
 package com.sesameware.smartyard_oem.ui.reg.sms
 
+import android.annotation.SuppressLint
 import android.content.res.ColorStateList
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.provider.Settings.Secure
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -55,6 +58,7 @@ class SmsRegFragment : Fragment() {
         requireActivity().onBackPressedDispatcher.addCallback(this, callback)
     }
 
+    @SuppressLint("HardwareIds")
     @Deprecated("Deprecated in Java")
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
@@ -117,12 +121,14 @@ class SmsRegFragment : Fragment() {
             eventHandler(binding.pin, requireContext())
         }
         binding.pin.setOnPinEnteredListener {
-            mViewModel.confirmCode(phoneNumber, it.toString(), this)
+            val androidId = Secure.getString(requireContext().contentResolver, Secure.ANDROID_ID)
+            mViewModel.confirmCode(androidId, phoneNumber, it.toString(), this)
         }
 
         binding.btnResendCode.setOnClickListener {
             toggleError(false)
-            mViewModel.resendCode(phoneNumber)
+            val androidId = Secure.getString(requireContext().contentResolver, Secure.ANDROID_ID)
+            mViewModel.resendCode(phoneNumber, androidId)
         }
 
         mViewModel.time.observe(

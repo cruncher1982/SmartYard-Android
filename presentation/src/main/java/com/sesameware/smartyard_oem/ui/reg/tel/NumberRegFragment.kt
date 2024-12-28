@@ -2,6 +2,7 @@ package com.sesameware.smartyard_oem.ui.reg.tel
 
 import android.content.Context
 import android.os.Bundle
+import android.provider.Settings.Secure
 import android.text.Editable
 import android.view.LayoutInflater
 import android.view.View
@@ -181,7 +182,8 @@ class NumberRegFragment : Fragment() {
         val numbers = binding.etHiddenPhoneNumber.text
         if (numbers.length == pinCount && !smsRequested) {
             smsRequested = true
-            mViewModel.requestSmsCode(mPhonePrefix + numbers, this)
+            val androidId = Secure.getString(requireContext().contentResolver, Secure.ANDROID_ID)
+            mViewModel.requestSmsCode(androidId, mPhonePrefix + numbers, this)
         }
     }
 

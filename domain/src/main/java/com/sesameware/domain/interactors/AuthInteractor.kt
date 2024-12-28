@@ -15,19 +15,20 @@ class AuthInteractor(
         return repository.registerPushToken(token)
     }
 
-    suspend fun requestCode(userPhone: String): RequestCodeResponse {
-        return repository.requestCode(userPhone)
+    suspend fun requestCode(userPhone: String, deviceToken: String): RequestCodeResponse {
+        return repository.requestCode(userPhone, deviceToken)
     }
 
     suspend fun confirmCode(
         userPhone: String,
-        smsCode: String
+        smsCode: String,
+        deviceToken: String
     ): ConfirmCodeResponse {
-        return repository.confirmCode(userPhone, smsCode)
+        return repository.confirmCode(userPhone, smsCode, deviceToken)
     }
 
-    suspend fun checkPhone(userPhone: String) : ConfirmCodeResponse {
-        return repository.checkPhone(userPhone)
+    suspend fun checkPhone(userPhone: String, deviceToken: String) : ConfirmCodeResponse {
+        return repository.checkPhone(userPhone, deviceToken)
     }
 
     suspend fun sendName(name: String, patronymic: String?): SendNameResponse {
