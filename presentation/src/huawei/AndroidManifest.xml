@@ -26,6 +26,10 @@
                 <action android:name="com.huawei.push.action.MESSAGING_EVENT"/>
             </intent-filter>
         </service>
+
+        <meta-data
+            android:name="com.huawei.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
     </application>
 
 </manifest>
