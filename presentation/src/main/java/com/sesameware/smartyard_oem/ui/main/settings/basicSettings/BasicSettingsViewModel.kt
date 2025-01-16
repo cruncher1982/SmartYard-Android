@@ -1,6 +1,5 @@
 package com.sesameware.smartyard_oem.ui.main.settings.basicSettings
 
-import android.util.Log
 import androidx.core.text.isDigitsOnly
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
@@ -64,7 +63,6 @@ class BasicSettingsViewModel(
     fun refreshUserData() {
         userName.postValue(mPreferenceStorage.sentName ?: SentName("", ""))
         val phoneCode = mPreferenceStorage.countryPhoneCode
-        Log.d("qqq", "$phoneCode")
         val phone = mPreferenceStorage.phone
         val formatted = if (phone != null) {
             if (phoneCode != null) {
