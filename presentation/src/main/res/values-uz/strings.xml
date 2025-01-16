@@ -501,4 +501,5 @@
     <string name="title_add_face">Bu yuzni qo‘shmoqchimisiz?</string>
     <string name="add_face">Qo‘shish</string>
     <string name="text_no_image">Rasm yo\'q</string>
+    <string name="phone_number_not_saved">Telefon raqami saqlanmagan</string>
 </resources>

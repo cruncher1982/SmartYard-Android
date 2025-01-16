@@ -1,7 +1,6 @@
 package com.sesameware.smartyard_oem.ui.reg.tel
 
 import android.app.Activity
-import android.provider.Settings.Secure
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.viewModelScope
@@ -27,19 +26,21 @@ class NumberRegViewModel(
     private var authMethod = AuthMethod.SMS_CODE
     private var callNumber = ""
 
-    fun requestSmsCode(deviceToken: String, phone: String, fragment: Fragment) {
+    fun requestSmsCode(deviceToken: String, countryCode: String, nationalNumber: String, fragment: Fragment) {
         viewModelScope.withProgress({ true }) {
+            val phone = countryCode + nationalNumber
             val res = mAuthInteractor.requestCode(phone, deviceToken)
             authMethod = res?.data?.method ?: AuthMethod.SMS_CODE
             res?.data?.confirmationNumbers?.let {
                 callNumber = it[Random.nextInt(0, it.size)]
             }
+            mPreferenceStorage.phone = phone
+            mPreferenceStorage.countryPhoneCode = countryCode
             goToNext(phone, fragment)
         }
     }
 
     fun goToNext(phone: String, fragment: Fragment) {
-        mPreferenceStorage.phone = phone
         when (authMethod) {
             AuthMethod.OUTGOING_CALL -> {
                 NavHostFragment.findNavController(fragment).navigate(

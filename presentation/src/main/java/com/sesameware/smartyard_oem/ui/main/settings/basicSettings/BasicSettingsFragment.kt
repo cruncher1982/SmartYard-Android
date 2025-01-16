@@ -13,7 +13,6 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.sesameware.data.DataModule
 import com.sesameware.domain.model.response.CCTVViewTypeType
-import com.sesameware.domain.model.response.ProviderConfig
 import com.sesameware.smartyard_oem.BuildConfig
 import com.sesameware.smartyard_oem.R
 import com.sesameware.smartyard_oem.R.drawable
@@ -109,7 +108,7 @@ class BasicSettingsFragment : Fragment() {
 
         binding.ivNameEdit.setOnClickListener {
             val dialog = DialogChangeName()
-            dialog.onSuccess = { mViewModel.refreshSendName() }
+            dialog.onSuccess = { mViewModel.refreshUserData() }
             dialog.show(parentFragmentManager, "")
         }
         mViewModel.logout.observe(
@@ -132,10 +131,19 @@ class BasicSettingsFragment : Fragment() {
             binding.tvSoundChoose.isVisible = false
         }
 
-        mViewModel.sentName.observe(
+        mViewModel.userName.observe(
             viewLifecycleOwner
         ) {
             binding.tvUserName.text = "${it.name} ${firstCharacter(it.patronymic)}"
+        }
+        mViewModel.userPhone.observe(
+            viewLifecycleOwner
+        ) {
+            if (it.isEmpty()) {
+                binding.tvUserPhone.text = getString(R.string.phone_number_not_saved)
+            } else {
+                binding.tvUserPhone.text = it
+            }
         }
         mViewModel.isPushSetting.observe(
             viewLifecycleOwner

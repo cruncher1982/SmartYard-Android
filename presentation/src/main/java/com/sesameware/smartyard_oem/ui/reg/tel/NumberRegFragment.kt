@@ -183,7 +183,7 @@ class NumberRegFragment : Fragment() {
         if (numbers.length == pinCount && !smsRequested) {
             smsRequested = true
             val androidId = Secure.getString(requireContext().contentResolver, Secure.ANDROID_ID)
-            mViewModel.requestSmsCode(androidId, mPhonePrefix + numbers, this)
+            mViewModel.requestSmsCode(androidId, mPhonePrefix, numbers.toString(), this)
         }
     }
 

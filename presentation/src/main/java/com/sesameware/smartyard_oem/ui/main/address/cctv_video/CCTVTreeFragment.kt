@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -73,7 +72,7 @@ class CCTVTreeFragment : Fragment() {
                 MaterialTheme {
                     var listHeight: Dp by remember { mutableStateOf(0.dp) }
                     Image(
-                        painter = painterResource(id = R.drawable.background_1),
+                        painter = painterResource(id = R.drawable.background_top_narrow),
                         contentDescription = null,
                         alignment = Alignment.TopStart,
                         modifier = Modifier

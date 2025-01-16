@@ -499,4 +499,5 @@
     <string name="title_add_face">Ավելացնել այս դեռևստանիչը։</string>
     <string name="add_face">Ավելացնել</string>
     <string name="text_no_image">Պատկեր չկա</string>
+    <string name="phone_number_not_saved">Հեռախոսահամարը չի պահպանվել</string>
 </resources>

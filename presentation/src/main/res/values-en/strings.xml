@@ -504,4 +504,5 @@
     <string name="title_add_face">Add this face?</string>
     <string name="add_face">Add</string>
     <string name="text_no_image">No Image</string>
+    <string name="phone_number_not_saved">Phone number is not saved</string>
 </resources>

@@ -472,6 +472,7 @@
     <string name="text_scroll_up">Наверх</string>
     <string name="title_common_settings">Общие настройки</string>
     <string name="user_name_sample">Алексеев В.Б.</string>
+    <string name="user_phone_sample" translatable="false">+7 (912) 345-67-82</string>
     <string name="title_notifications">Уведомления</string>
     <string name="receive_notifications">Получать уведомления</string>
     <string name="lack_funds_notifications">Оповестить о недостатке средств</string>
@@ -504,4 +505,5 @@
     <string name="dialog_face_cancel">Отмена</string>
     <string name="title_add_face">Добавить это лицо?</string>
     <string name="add_face">Добавить</string>
+    <string name="phone_number_not_saved">Номер телефона не сохранен</string>
 </resources>

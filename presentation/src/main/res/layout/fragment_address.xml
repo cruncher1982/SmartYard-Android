@@ -14,7 +14,7 @@
         android:adjustViewBounds="true"
         android:importantForAccessibility="no"
         android:scaleType="centerCrop"
-        app:srcCompat="@drawable/ic_background_address"
+        app:srcCompat="@drawable/background_top_narrow"
         app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.constraintlayout.widget.Guideline

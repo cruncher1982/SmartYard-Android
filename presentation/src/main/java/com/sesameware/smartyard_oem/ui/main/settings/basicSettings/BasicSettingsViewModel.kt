@@ -1,5 +1,7 @@
 package com.sesameware.smartyard_oem.ui.main.settings.basicSettings
 
+import android.util.Log
+import androidx.core.text.isDigitsOnly
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.sesameware.data.prefs.PreferenceStorage
@@ -9,6 +11,7 @@ import com.sesameware.domain.interactors.DatabaseInteractor
 import com.sesameware.domain.model.TF
 import com.sesameware.smartyard_oem.GenericViewModel
 import com.sesameware.smartyard_oem.ui.SoundChooser
+import java.util.regex.Pattern
 
 /**
  * @author Nail Shakurov
@@ -20,13 +23,14 @@ class BasicSettingsViewModel(
     override val mAuthInteractor: AuthInteractor
 ) : GenericViewModel() {
 
-    val sentName = MutableLiveData<SentName>()
+    val userName = MutableLiveData<SentName>()
+    val userPhone = MutableLiveData<String>()
 
     val isPushSetting = MutableLiveData<Boolean>()
     val isPushMoneySetting = MutableLiveData<Boolean>()
 
     init {
-        refreshSendName()
+        refreshUserData()
         viewModelScope.withProgress {
             val res = mAuthInteractor.userNotification(
                 null, null
@@ -57,8 +61,43 @@ class BasicSettingsViewModel(
         }
     }
 
-    fun refreshSendName() {
-        sentName.postValue(mPreferenceStorage.sentName ?: SentName("", ""))
+    fun refreshUserData() {
+        userName.postValue(mPreferenceStorage.sentName ?: SentName("", ""))
+        val phoneCode = mPreferenceStorage.countryPhoneCode
+        Log.d("qqq", "$phoneCode")
+        val phone = mPreferenceStorage.phone
+        val formatted = if (phone != null) {
+            if (phoneCode != null) {
+                formatPhoneNumber(phoneCode, phone)
+            } else {
+                "+$phone"
+            }
+        } else {
+            ""
+        }
+        userPhone.postValue(formatted)
+    }
+
+    private fun formatPhoneNumber(countryCodeIso: String, rawPhoneNumber: String): String {
+        val cci = countryCodeIso
+        if (cci.isEmpty() || cci.length > 3 || !cci.isDigitsOnly())
+            throw IllegalArgumentException("countryCodeIso must contain from 1 to 3 digits only")
+
+        val pn = Pattern.compile("\\D+").matcher(rawPhoneNumber).replaceAll("")
+        if (pn.length < 10 || pn.length > 15 || !pn.isDigitsOnly())
+            throw IllegalArgumentException("rawPhoneNumber must contain from 10 to 15 digits")
+
+        val ccl = countryCodeIso.length
+        val pnl = rawPhoneNumber.length
+        val areaCode = rawPhoneNumber.substring(ccl until pnl - 7)
+        val subscriberNumber0 = rawPhoneNumber.substring(pnl - 7 until pnl - 4)
+        val subscriberNumber1 = rawPhoneNumber.substring(pnl - 4 until pnl - 2)
+        val subscriberNumber2 = rawPhoneNumber.substring(pnl - 2 until pnl)
+
+        val formatted = StringBuilder()
+        formatted.append("+$countryCodeIso ", "($areaCode) ", "$subscriberNumber0-",
+            "$subscriberNumber1-", subscriberNumber2)
+        return formatted.toString()
     }
 
     fun saveSoundToPref(tone: SoundChooser.RingtoneU) {

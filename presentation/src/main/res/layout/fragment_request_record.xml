@@ -19,7 +19,7 @@
             android:adjustViewBounds="true"
             android:scaleType="centerCrop"
             app:layout_constraintTop_toTopOf="parent"
-            app:srcCompat="@drawable/background_auth" />
+            app:srcCompat="@drawable/background_top_wide" />
 
         <ImageView
             android:id="@+id/ivRequestRecordBack"

@@ -16,6 +16,7 @@ interface PreferenceStorage {
     var pushTokenRegistered: String?
     var sentName: SentName?
     var phone: String?
+    var countryPhoneCode: String?
     var notificationData: NotificationData
     var notifySoundUri: String?
     var addressOptions: AddressOptions
@@ -28,6 +29,8 @@ interface PreferenceStorage {
     var houseIdPositions: Map<Int, Int>?
     var expandedHouseIds: Set<Int>?
     var justRegistered: Boolean
+
+    fun clear()
 }
 
 /**
@@ -47,6 +50,7 @@ class SharedPreferenceStorage constructor(
         const val PREF_PUSH_TOKEN_REGISTERED = "PREF_PUSH_TOKEN_REGISTERED"
         const val PREF_SENT_NAME = "PREF_SENT_NAME"
         const val PREF_PHONE = "PREF_PHONE"
+        const val PREF_COUNTRY_PHONE_CODE = "PREF_COUNTRY_PHONE_CODE"
         const val PREF_NOTIFICATION_DATA = "PREF_NOTIFICATION_DATA"
         const val PREF_NOTIFY_SOUND_URI = "PREF_NOTIFY_SOUND_URI"
         const val PREF_ADDRESS_OPTIONS = "PREF_ADDRESS_OPTIONS_2"
@@ -71,6 +75,7 @@ class SharedPreferenceStorage constructor(
         SentName::class.java
     )
     override var phone by StringPreference(prefs, PREF_PHONE, null)
+    override var countryPhoneCode by StringPreference(prefs, PREF_COUNTRY_PHONE_CODE, null)
     override var notificationData by SerializablePreference(
         prefs,
         PREF_NOTIFICATION_DATA,
@@ -103,6 +108,19 @@ class SharedPreferenceStorage constructor(
     )
     override var justRegistered by BooleanPreference(prefs,
         PREFS_JUST_REGISTERED, true)
+
+    override fun clear() {
+        providerId = null
+        providerBaseUrl = null
+        authToken = null
+        sentName = null
+        phone = null
+        countryPhoneCode = null
+        pushTokenRegistered = null
+        houseIdPositions = null
+        expandedHouseIds = null
+        justRegistered = true
+    }
 }
 
 class SerializablePreferenceNullable<T>(

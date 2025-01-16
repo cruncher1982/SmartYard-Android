@@ -17,7 +17,7 @@
             android:adjustViewBounds="true"
             android:scaleType="centerCrop"
             app:layout_constraintTop_toTopOf="parent"
-            app:srcCompat="@drawable/ic_background_reg_number" />
+            app:srcCompat="@drawable/background_top_narrow" />
 
         <ImageView
             android:id="@+id/imageView2"

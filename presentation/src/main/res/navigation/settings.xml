@@ -59,7 +59,8 @@
     <fragment
         android:id="@+id/accessAddressFragment"
         android:name="com.sesameware.smartyard_oem.ui.main.settings.accessAddress.AccessAddressFragment"
-        android:label="AccessAddressFragment">
+        android:label="AccessAddressFragment"
+        tools:layout="@layout/fragment_access_address">
         <argument
             android:name="address"
             app:argType="string" />
