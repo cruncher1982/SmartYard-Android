@@ -24,6 +24,7 @@ import com.sesameware.smartyard_oem.ui.main.address.models.IssueModel
 import com.sesameware.smartyard_oem.ui.main.address.models.OnCameraClick
 import com.sesameware.smartyard_oem.ui.main.address.models.OnEventLogClick
 import com.sesameware.smartyard_oem.ui.main.address.models.OnExpandClick
+import com.sesameware.smartyard_oem.ui.main.address.models.OnHouseAddressLongClick
 import com.sesameware.smartyard_oem.ui.main.address.models.OnIssueClick
 import com.sesameware.smartyard_oem.ui.main.address.models.OnItemFullyExpanded
 import com.sesameware.smartyard_oem.ui.main.address.models.OnOpenEntranceClick
@@ -137,8 +138,6 @@ class HouseViewHolder private constructor(
     private val binding: ItemHouseBinding
 ) : RecyclerView.ViewHolder(binding.root) {
 
-    private var stashedIsExpanded = false
-
     fun onThisItemDragged() {
         binding.root.apply {
             val elevationPx = context.resources.displayMetrics.density * DRAGGED_ELEVATION
@@ -170,6 +169,10 @@ class HouseViewHolder private constructor(
     fun bind(state: HouseUiModel, callback: HouseCallback) {
         with (binding) {
             houseAddress.text = state.address
+            houseAddress.setOnLongClickListener {
+                callback(OnHouseAddressLongClick(bindingAdapterPosition))
+                return@setOnLongClickListener true
+            }
 
             expandableLayout.setExpanded(state.isExpanded, false)
             expandableLayout.setOnExpansionUpdateListener(object : OnExpansionUpdateListener {
@@ -188,7 +191,6 @@ class HouseViewHolder private constructor(
                 callback(OnExpandClick(bindingAdapterPosition, expandHouse.isSelected))
                 expandableLayout.toggle()
             }
-//            houseAddress.setOnClickListener(onHeaderClickListener)
             expandHouse.setOnClickListener(onHeaderClickListener)
             expandHouse.isSelected = state.isExpanded
 

@@ -6,6 +6,7 @@ sealed interface HouseAction
 
 data class OnOpenEntranceClick(val entranceId: EntranceId) : HouseAction
 data class OnExpandClick(val position: Int, val isExpanded: Boolean) : HouseAction
+data class OnHouseAddressLongClick(val position: Int) : HouseAction
 data class OnItemFullyExpanded(val position: Int) : HouseAction
 data class OnCameraClick(val model: VideoCameraModelP) : HouseAction
 data class OnEventLogClick(val title: String, val houseId: Int) : HouseAction

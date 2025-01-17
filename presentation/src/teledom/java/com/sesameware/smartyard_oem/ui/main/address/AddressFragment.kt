@@ -40,6 +40,7 @@ import com.sesameware.smartyard_oem.ui.main.address.models.IssueModel
 import com.sesameware.smartyard_oem.ui.main.address.models.OnCameraClick
 import com.sesameware.smartyard_oem.ui.main.address.models.OnEventLogClick
 import com.sesameware.smartyard_oem.ui.main.address.models.OnExpandClick
+import com.sesameware.smartyard_oem.ui.main.address.models.OnHouseAddressLongClick
 import com.sesameware.smartyard_oem.ui.main.address.models.OnIssueClick
 import com.sesameware.smartyard_oem.ui.main.address.models.OnItemFullyExpanded
 import com.sesameware.smartyard_oem.ui.main.address.models.OnOpenEntranceClick
@@ -60,7 +61,8 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
     private val mEventLog by sharedViewModel<EventLogViewModel>()
 
     private var adapter: AddressListAdapter? = null
-    private var manager: LinearLayoutManager? = null
+    private var layoutManager: LinearLayoutManager? = null
+    private var itemTouchHelper: ItemTouchHelper? = null
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -106,10 +108,10 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
     }
 
     private fun initAddressList() {
-        manager = LinearLayoutManager(requireContext())
+        layoutManager = LinearLayoutManager(requireContext())
         adapter = AddressListAdapter(::onAddressAction, ::onIssueAction)
         binding.addressList.let {
-            it.layoutManager = manager
+            it.layoutManager = layoutManager
             it.adapter = adapter
             it.addOnScrollListener(showHideFabListener)
             val callback = DragToSortCallback(
@@ -117,15 +119,15 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
                 ::onItemDrag,
                 ::onItemRelease
             )
-            val helper = ItemTouchHelper(callback)
-            helper.attachToRecyclerView(it)
+            itemTouchHelper = ItemTouchHelper(callback)
+            itemTouchHelper!!.attachToRecyclerView(it)
         }
     }
 
     private fun onItemDrag(viewHolder: RecyclerView.ViewHolder?) {
         (viewHolder as? HouseViewHolder)?.onThisItemDragged()
         requireInitialized(adapter).onViewDragged()
-        val manager = requireInitialized(manager)
+        val manager = requireInitialized(layoutManager)
         val firstVisible = manager.findFirstVisibleItemPosition()
         val lastVisible = manager.findLastVisibleItemPosition()
         (firstVisible..lastVisible).forEach {
@@ -152,6 +154,14 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
             }
             is OnOpenEntranceClick -> mViewModel.openDoor(action.entranceId)
             is OnItemFullyExpanded -> scrollUntilFullItemVisible(action.position)
+            is OnHouseAddressLongClick -> startDrag(action.position)
+        }
+    }
+
+    private fun startDrag(position: Int) {
+        val helper = requireInitialized(itemTouchHelper)
+        (binding.addressList.findViewHolderForLayoutPosition(position) as? HouseViewHolder)?.let {
+            helper.startDrag(it)
         }
     }
 
@@ -338,8 +348,10 @@ class AddressFragment : Fragment(), GuestAccessDialogFragment.OnGuestAccessListe
         super.onDestroyView()
 
         binding.addressList.adapter = null
+        itemTouchHelper?.attachToRecyclerView(null)
+        itemTouchHelper = null
         adapter = null
-        manager = null
+        layoutManager = null
         _binding = null
     }
 

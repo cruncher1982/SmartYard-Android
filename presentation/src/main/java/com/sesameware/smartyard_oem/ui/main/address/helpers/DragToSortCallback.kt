@@ -42,7 +42,7 @@ class DragToSortCallback(
 
     override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
 
-    override fun isLongPressDragEnabled(): Boolean = true
+    override fun isLongPressDragEnabled(): Boolean = false
 
     override fun isItemViewSwipeEnabled(): Boolean = false
 
