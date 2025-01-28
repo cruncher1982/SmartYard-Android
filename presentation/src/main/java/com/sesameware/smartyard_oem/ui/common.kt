@@ -353,17 +353,13 @@ fun sendCallNotification(
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         val notification = notificationBuilder.build()
-        if (VERSION.SDK_INT >= VERSION_CODES.Q) {
+        if (VERSION.SDK_INT >= VERSION_CODES.O) {
             try {
-                LinphoneService.instance?.let { service ->
-                    ServiceCompat.startForeground(service, notId, notification,
-                        if (VERSION.SDK_INT >= VERSION_CODES.R) {
-                            ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
-                        } else {
-                            0
-                        })
-                }
+                Timber.d("__S__ before call startForeground")
+                LinphoneService.instance?.startForeground(notId, notification)
+                Timber.d("__S__ after call startForeground")
             } catch (e: Exception) {
+                Timber.d("__S__ exception")
                 val crashlytics = Crashlytics.getInstance()
                 crashlytics.recordException(e)
             }

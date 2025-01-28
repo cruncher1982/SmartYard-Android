@@ -186,6 +186,7 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
 
                     override fun onSetSuccess() {
                         val body = RequestBody.create("application/sdp".toMediaTypeOrNull(), desc?.description ?: "")
+                        Timber.d("debug_webrtc    server URL ${mPushCallData.webRtcVideoUrl}")
                         Timber.d("debug_webrtc    ${body.contentType()}    ${body.contentLength()}")
                         val request = Request.Builder()
                             .url(mPushCallData.webRtcVideoUrl)
@@ -194,7 +195,7 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
                         val httpClient = OkHttpClient.Builder().build()
                         try {
                             httpClient.newCall(request).execute().use { response ->
-                                Timber.d("debug_webrtc     ${response.code}")
+                                Timber.d("debug_webrtc    response code ${response.code}")
                                 if (response.isSuccessful) {
                                     val sdpAnswer = SessionDescription(SessionDescription.Type.ANSWER, response.body!!.string())
                                     peerConnection?.setRemoteDescription(object : SdpObserver {
@@ -218,7 +219,7 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
                                 }
                             }
                         } catch (e: Exception) {
-                            Timber.e("$e")
+                            Timber.d("debug_webrtc $e")
                         }
 
                         Timber.d("debug_webrtc onSetSuccess")
@@ -633,13 +634,6 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
                     setConnectedState(true)
                 }
                 CallStateSimple.CONNECTED -> {
-                    if (mTryingToOpenDoor) {
-                        binding.mAnswerButton.setText(R.string.connecting)
-                        mLinphone.sendDtmf()
-                    } else {
-                        Timber.d("debug_webrtc    observeCallState    CallStateSimple.CONNECTED")
-                        setConnectedState(true)
-                    }
                 }
                 CallStateSimple.CONNECTING -> {
                     binding.mAnswerButton.setText(R.string.connecting)
@@ -652,6 +646,16 @@ class IncomingCallActivity : CommonActivity(), KoinComponent, SensorEventListene
                 CallStateSimple.IDLE -> {
                     Timber.d("debug_webrtc    observeCallState    CallStateSimple.IDLE")
                     setConnectedState(false)
+                }
+                CallStateSimple.STREAMS_RUNNING -> {
+                    if (mTryingToOpenDoor) {
+                        binding.mAnswerButton.setText(R.string.connecting)
+                        mLinphone.sendDtmf()
+                    } else {
+                        Timber.d("debug_webrtc    observeCallState    CallStateSimple.STREAMS_RUNNING")
+                        setConnectedState(true)
+                    }
+                    setConnectedState(true)
                 }
             }
         }

@@ -8,6 +8,7 @@ import android.media.RingtoneManager
 import android.os.Build
 import android.os.Handler
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
@@ -92,9 +93,13 @@ class MessagingService : RuStoreMessagingService(), KoinComponent {
                                 msg.image = "${preferenceStorage.providerBaseUrl}call/camshot/${hash}"
                             }
 
-                            waitForLinServiceAndRun(msg) {
-                                Timber.d("debug_dmm linphone service is running")
-                                it.listenAndGetNotifications(msg)
+                            if (NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+                                waitForLinServiceAndRun(msg) {
+                                    Timber.d("debug_dmm linphone service is running")
+                                    it.listenAndGetNotifications(msg)
+                                }
+                            } else {
+                                Timber.d("debug_dmm notifications are disabled")
                             }
                         }
                     }
@@ -257,20 +262,11 @@ class MessagingService : RuStoreMessagingService(), KoinComponent {
         }
     }
 
-    private fun isAppVisible(): Boolean {
-        return ProcessLifecycleOwner
-            .get()
-            .lifecycle
-            .currentState
-            .isAtLeast(Lifecycle.State.STARTED)
-    }
-
     private fun waitForLinServiceAndRun(fcmCallData: PushCallData, listener: listenerGeneric<LinphoneProvider>) {
-        val flagNotification = !isAppVisible()
-        fcmCallData.flagNotification = flagNotification
         Thread {
             if (!LinphoneService.isReady()) {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || !flagNotification) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+                    Timber.d("__S__    call startService")
                     startService(
                         Intent().setClass(context, LinphoneService::class.java).also { intent ->
                             if (fcmCallData.stun?.isNotEmpty() == true) {
@@ -282,6 +278,7 @@ class MessagingService : RuStoreMessagingService(), KoinComponent {
                         }
                     )
                 } else {
+                    Timber.d("__S__    call startForegroundService")
                     startForegroundService(
                         Intent().setClass(context, LinphoneService::class.java).also { intent ->
                             if (fcmCallData.stun?.isNotEmpty() == true) {

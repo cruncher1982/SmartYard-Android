@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -96,17 +97,21 @@ class MessagingService : FirebaseMessagingService(), KoinComponent {
 
                             //for test
                             /*if (msg.callerId == "Support") {
-                                msg.videoToken = ""
-                                msg.videoStream = "https://rbt-demo.lanta.me:8443/rbt-demo-000006"
+                                msg.videoToken = "123"
+                                msg.videoStream = "https://fl4.lanta.me:8443/95594"
                                 msg.videoServer = "flussonic"
                                 msg.videoType = "webrtc"
                                 msg.live = "${preferenceStorage.providerBaseUrl}call/live/123456"
                                 msg.image = "${preferenceStorage.providerBaseUrl}call/camshot/123456"
                             }*/
 
-                            waitForLinServiceAndRun(msg) {
-                                Timber.d("debug_dmm linphone service is running")
-                                it.listenAndGetNotifications(msg)
+                            if (NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+                                waitForLinServiceAndRun(msg) {
+                                    Timber.d("debug_dmm linphone service is running")
+                                    it.listenAndGetNotifications(msg)
+                                }
+                            } else {
+                                Timber.d("debug_dmm notifications are disabled")
                             }
                         }
                     }
@@ -266,20 +271,11 @@ class MessagingService : FirebaseMessagingService(), KoinComponent {
         }
     }
 
-    private fun isAppVisible(): Boolean {
-        return ProcessLifecycleOwner
-            .get()
-            .lifecycle
-            .currentState
-            .isAtLeast(Lifecycle.State.STARTED)
-    }
-
     private fun waitForLinServiceAndRun(fcmCallData: PushCallData, listener: listenerGeneric<LinphoneProvider>) {
-        val flagNotification = !isAppVisible()
-        fcmCallData.flagNotification = flagNotification
         Thread {
             if (!LinphoneService.isReady()) {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || !flagNotification) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+                    Timber.d("__S__    call startService")
                     startService(
                         Intent().setClass(context, LinphoneService::class.java).also { intent ->
                             if (fcmCallData.stun?.isNotEmpty() == true) {
@@ -291,6 +287,7 @@ class MessagingService : FirebaseMessagingService(), KoinComponent {
                         }
                     )
                 } else {
+                    Timber.d("__S__    call startForegroundService")
                     startForegroundService(
                         Intent().setClass(context, LinphoneService::class.java).also { intent ->
                             if (fcmCallData.stun?.isNotEmpty() == true) {

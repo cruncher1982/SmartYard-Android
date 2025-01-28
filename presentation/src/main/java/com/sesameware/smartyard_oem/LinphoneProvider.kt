@@ -2,22 +2,17 @@ package com.sesameware.smartyard_oem
 
 import android.app.NotificationManager
 import android.content.Context
-import android.content.Intent
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Build
 import android.view.View
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ProcessLifecycleOwner
 import com.sesameware.data.DataModule
 import com.sesameware.data.prefs.PreferenceStorage
 import com.sesameware.domain.model.PushCallData
 import com.sesameware.domain.utils.doDelayed
 import com.sesameware.smartyard_oem.ui.SoundChooser
 import com.sesameware.smartyard_oem.ui.call.AndroidAudioManager
-import com.sesameware.smartyard_oem.ui.call.IncomingCallActivity
-import com.sesameware.smartyard_oem.ui.call.IncomingCallActivity.Companion.PUSH_DATA
 import com.sesameware.smartyard_oem.ui.sendCallNotification
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -95,6 +90,8 @@ class LinphoneProvider(val core: Core, val service: LinphoneService) : KoinCompo
                 CallStateSimple.IDLE,
                 CallStateSimple.CONNECTING -> {
                 }
+                CallStateSimple.STREAMS_RUNNING -> {
+                }
             }
             super.onCallStateChanged(core, call, state, message)
         }
@@ -108,16 +105,7 @@ class LinphoneProvider(val core: Core, val service: LinphoneService) : KoinCompo
                 shouldVibrate = notification?.shouldVibrate() ?: false
                 vibrationPattern = notification?.vibrationPattern ?: vibrationPattern
             }
-            if (data.flagNotification) {
-                sendCallNotification(data, service, preferenceStorage)
-            } else {
-                val intent =
-                    Intent(service, IncomingCallActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
-                        putExtra(PUSH_DATA, data)
-                    }
-                service.startActivity(intent)
-            }
+            sendCallNotification(data, service, preferenceStorage)
             if (notificationManager.currentInterruptionFilter == NotificationManager.INTERRUPTION_FILTER_ALL) {
                 startRinging()
             }
@@ -135,8 +123,9 @@ class LinphoneProvider(val core: Core, val service: LinphoneService) : KoinCompo
     }
 
     fun isConnected(): Boolean {
-        return callState.value?.state == CallStateSimple.CONNECTED ||
-            callState.value?.state == CallStateSimple.OTHER_CONNECTED
+        return callState.value?.state == CallStateSimple.CONNECTED
+                || callState.value?.state == CallStateSimple.OTHER_CONNECTED
+                || callState.value?.state == CallStateSimple.STREAMS_RUNNING
     }
 
     fun isVideoCall(): Boolean = if (isConnected()) {
@@ -384,7 +373,9 @@ private fun convertCallState(state: Call.State): CallStateSimple {
         Call.State.Released -> {
             CallStateSimple.END
         }
-        Call.State.StreamsRunning,
+        Call.State.StreamsRunning -> {
+            CallStateSimple.STREAMS_RUNNING
+        }
         Call.State.Updating,
         Call.State.PausedByRemote,
         Call.State.UpdatedByRemote,
@@ -404,5 +395,5 @@ private fun convertCallState(state: Call.State): CallStateSimple {
 }
 
 enum class CallStateSimple {
-    CONNECTED, CONNECTING, ERROR, IDLE, INCOMING, END, OTHER_CONNECTED
+    CONNECTED, CONNECTING, ERROR, IDLE, INCOMING, END, OTHER_CONNECTED, STREAMS_RUNNING
 }
